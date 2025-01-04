@@ -13,10 +13,9 @@ RUN npm install
 # Copia todo el contenido del proyecto al directorio de trabajo
 COPY . .
 
-
 # Instala Chromium y dependencias adicionales para puppeteer
 RUN apt-get update && apt-get install -y \
-libatk1.0-0 \
+  libatk1.0-0 \
   libatk-bridge2.0-0 \
   libcups2 \
   libdbus-1-3 \
@@ -34,11 +33,11 @@ libatk1.0-0 \
   libasound2 \
   libxss1 \
   fonts-liberation \
- libappindicator3-1 \
+  libappindicator3-1 \
   libxkbfile1
 
 # Expone el puerto en el que corre tu aplicación (3000 en tu caso)
 EXPOSE 3000
 
-# Usa PM2 para ejecutar tu bot
-CMD ["pm2-runtime", "bot/bot.js"]
+# Comando para ejecutar el bot sin pm2
+CMD ["node", "bot/bot.js"]  # Asegúrate de que la ruta del archivo sea correcta
