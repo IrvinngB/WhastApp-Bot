@@ -9,6 +9,7 @@ const { GoogleGenerativeAI } = require("@google/generative-ai");
 const fs = require('fs');
 const path = require('path');
 const moment = require('moment-timezone'); // Añadido para manejar la zona horaria de manera precisa
+const puppeteer = require('puppeteer-core'); // Importa puppeteer-core
 
 const pausedUsers = {}; // Objeto para almacenar el estado pausado de cada usuario
 
@@ -195,3 +196,21 @@ const port = process.env.PORT || 3000; // Usar el puerto proporcionado por OnRen
 server.listen(port, () => {
     console.log(`Servidor escuchando en http://localhost:${port}`);
 });
+
+// Configuración de Puppeteer con --no-sandbox
+async function launchBrowser() {
+    try {
+        const browser = await puppeteer.launch({
+            executablePath: '/usr/bin/chromium', // Cambia esto si la ruta de Chromium es diferente
+            args: ['--no-sandbox', '--disable-setuid-sandbox']
+        });
+
+        const page = await browser.newPage();
+        await page.goto('https://example.com');
+        // Continuar con el resto de tu código...
+    } catch (error) {
+        console.error('Error lanzando el navegador:', error);
+    }
+}
+
+launchBrowser();
