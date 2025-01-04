@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WhatsApp QR</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        h1 {
+            color: #444;
+        }
+
+        #qrcode {
+            margin: 20px;
+            padding: 20px;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        #status {
+            margin-top: 10px;
+            color: #555;
+        }
+
+        .btn-refresh {
+            margin-top: 20px;
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .btn-refresh:hover {
+            background-color: #45a049;
+        }
+
+        footer {
+            margin-top: 30px;
+            font-size: 14px;
+            color: #777;
+        }
+    </style>
+</head>
+<body>
+    <h1>Escanea el código QR para conectar a WhatsApp</h1>
+    <div id="qrcode">Generando QR...</div>
+    <div id="status">Esperando la conexión...</div>
+
+    <footer>
+        <p>&copy; 2024 ElectronicsJS. Todos los derechos reservados.</p>
+    </footer>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        let qrCount = 0; // Inicializar el contador de QR
+
+        // Escuchar el evento 'qr' para recibir el código QR y mostrarlo en la página
+        socket.on('qr', (qrCodeUrl) => {
+            qrCount++; // Incrementar el contador de QR
+            const qrDiv = document.getElementById('qrcode');
+            qrDiv.innerHTML = `<p><strong>QR ${qrCount}</strong></p><img src="${qrCodeUrl}" alt="Código QR">`;
+        });
+
+        // Escuchar el evento 'ready' para saber cuándo el cliente está listo
+        socket.on('ready', (message) => {
+            const statusDiv = document.getElementById('status');
+            statusDiv.innerText = message;
+        });
+
+        // Función para recargar el QR manualmente (opcional)
+        function refreshQR() {
+            socket.emit('request-qr');
+            document.getElementById('status').innerText = 'Recargando QR...';
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,30 @@
+# Ignorar archivos y directorios generados
+node_modules/
+npm-debug.log*
+yarn-error.log*
+.wwebjs_cache/
+
+# Ignorar archivos de caché
+.cache
+.DS_Store
+
+# Ignorar archivos de configuración específicos
+config.local.json
+.env
+
+# Ignorar archivos de respaldo
+*.swp
+*~
+
+# Ignorar archivos de IDE
+.idea
+.vscode
+
+# Ignorar archivos de build
+build/
+dist/
+
+# Ignorar archivos específicos para tu proyecto
+WhatsApp-bot/data/
+WhatsApp-bot/logs/
+.env.local

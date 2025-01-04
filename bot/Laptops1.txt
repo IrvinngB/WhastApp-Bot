@@ -1,0 +1,40 @@
+
+GAMA BAJA
+
+1. Acer Aspire 5: AMD Ryzen 3 5300U, 4 GB RAM, 128 GB SSD, Pantalla 15.6" Full HD, Windows 11 Home. 400$
+2. Lenovo IdeaPad 3: Intel Core i3-1115G4, 4 GB RAM, 256 GB SSD, Pantalla 14" HD, Windows 11 Home. 350$
+3. Dell Inspiron 15 3000: Intel Pentium Silver N5030, 4 GB RAM, 128 GB SSD, Pantalla 15.6" HD, Windows 11 Home. 350$
+4. Acer Aspire 1: Intel Celeron N4500, 4 GB RAM, 128 GB eMMC, Pantalla 14" HD (1366 x 768), Windows 10 Home en modo S. 300$
+5. HP Stream 14: Intel Celeron N4020, 4 GB RAM, 64 GB eMMC, Pantalla 14" HD (1366 x 768), Windows 11 Home en modo S. 280$
+
+GAMA MEDIA
+
+1. HP Pavilion x360: Intel Core i5-1135G7, 8 GB RAM, 512 GB SSD, Pantalla 14" Full HD táctil, Windows 11 Home. 650$
+2. Acer Aspire 7: AMD Ryzen 5 3550H, 8 GB RAM, 512 GB SSD, Pantalla 15.6" Full HD, Windows 10 Home. 700$
+3. Lenovo Yoga 7i: Intel Core i5-1235U, 8 GB RAM, 256 GB SSD, Pantalla 14" Full HD táctil, Windows 11 Home. 750$
+4. Dell Inspiron 14 7000: Intel Core i5-11300H, 8 GB RAM, 512 GB SSD, Pantalla 14" Full HD, Windows 11 Home. 750$
+5. Asus VivoBook 15: Intel Core i5-1135G7, 8 GB RAM, 512 GB SSD, Pantalla 15.6" Full HD (1920 x 1080), Windows 11 Home. 700$
+
+GAMA ALTA
+
+1. Apple MacBook Air (M2, 2023): Apple M2, 8 GB RAM, 256 GB SSD, Pantalla 13.6" Liquid Retina, macOS. 1200$
+2. Dell XPS 15: Intel Core i7-13700H, 16 GB RAM, 1 TB SSD, Pantalla 15.6" 4K UHD+, Windows 11 Pro. 2000$
+3. Microsoft Surface Laptop 5: Intel Core i7-1255U, 16 GB RAM, 512 GB SSD, Pantalla 15" PixelSense (2496 x 1664), Windows 11 Home. 1800$
+4. HP Spectre x360 14: Intel Core i7-1165G7, 16 GB RAM, 512 GB SSD, Pantalla 13.5" Full HD (1920 x 1080) táctil, Windows 11 Home. 1400$
+5. Huawei MateBook X Pro: Intel Core i7-1165G7, 16 GB RAM, 512 GB SSD, Pantalla 13.9" 3K (3000 x 2000) táctil, Windows 11 Home. 1500$
+
+GAMER
+
+1. Acer Nitro 5: Intel Core i5-11400H, 8 GB RAM, 512 GB SSD, Pantalla 15.6" Full HD (1920 x 1080) 144Hz, NVIDIA GeForce GTX 1650, Windows 11 Home. 1000$
+2. HP Omen 16: AMD Ryzen 7 5800H, 16 GB RAM, 512 GB SSD, Pantalla 16.1" QHD (2560 x 1600), 165 Hz, NVIDIA GeForce RTX 3060, Windows 11 Home. 1500$
+3. Lenovo Legion 5: AMD Ryzen 5 5600H, 12 GB RAM, 512 GB SSD, Pantalla 15.6" Full HD (1920 x 1080), 120 Hz, NVIDIA GeForce GTX 1650, Windows 11 Home. 850$
+4. HP Pavilion Gaming 15: Intel Core i5-11300H, 8 GB RAM, 512 GB SSD, Pantalla 15.6" Full HD (1920 x 1080), 60 Hz, NVIDIA GeForce GTX 1650, Windows 11 Home. 750$
+5. MSI GF65 Thin: Intel Core i7-10750H, 16 GB RAM, 512 GB SSD, Pantalla 15.6" Full HD (1920 x 1080) 120Hz, NVIDIA GeForce RTX 3060, Windows 11 Home. 1200$
+
+EMPRESARIAL
+
+1. Lenovo ThinkPad T14: Intel Core i5-10210U, 8 GB RAM, 256 GB SSD, Pantalla 14" Full HD (1920 x 1080), Windows 10 Pro. 750$
+2. Lenovo ThinkPad X1 Carbon (8ª Gen): Intel Core i5-10210U, 8 GB RAM, 256 GB SSD, Pantalla 14" Full HD (1920 x 1080), Windows 10 Pro. 950$
+3. HP EliteBook 850 G6: Intel Core i5-8365U, 8 GB RAM, 256 GB SSD, Pantalla 15.6" Full HD (1920 x 1080), Windows 10 Pro. 900$
+4. Acer Swift 3: Intel Core i5-1135G7, 8 GB RAM, 512 GB SSD, Pantalla 14" Full HD (1920 x 1080), Windows 11 Home. 700$
+5. Lenovo ThinkPad L14 Yoga: Intel Core i5-1135G7, 8 GB RAM, 256 GB SSD, Pantalla 14" Full HD (1920 x 1080) táctil, Windows 11 Pro. 1000$
