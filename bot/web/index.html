@@ -5,62 +5,185 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WhatsApp QR</title>
     <style>
+        :root {
+            --primary-color: #25D366;
+            --secondary-color: #128C7E;
+            --background-color: #f0f2f5;
+            --text-color: #41525d;
+            --shadow: 0 8px 24px rgba(0,0,0,0.1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
-            font-family: Arial, sans-serif;
-            background-color: #f4f4f4;
-            color: #333;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
             display: flex;
             flex-direction: column;
-            justify-content: center;
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        .container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
             align-items: center;
-            height: 100vh;
-            margin: 0;
+            justify-content: center;
+            padding: 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
         }
 
         h1 {
-            color: #444;
+            font-size: 2rem;
+            font-weight: 600;
+            color: var(--secondary-color);
+            text-align: center;
+            margin-bottom: 2rem;
+            animation: fadeIn 0.8s ease-out;
         }
 
         #qrcode {
-            margin: 20px;
-            padding: 20px;
-            background-color: #fff;
-            border: 1px solid #ddd;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-            text-align: center;
+            background-color: white;
+            padding: 2rem;
+            border-radius: 20px;
+            box-shadow: var(--shadow);
+            transition: transform 0.3s ease;
+            animation: scaleIn 0.5s ease-out;
+        }
+
+        #qrcode:hover {
+            transform: translateY(-5px);
+        }
+
+        #qrcode img {
+            max-width: 300px;
+            height: auto;
+            border-radius: 10px;
         }
 
         #status {
-            margin-top: 10px;
-            color: #555;
+            margin-top: 1.5rem;
+            padding: 1rem 2rem;
+            background-color: white;
+            border-radius: 50px;
+            box-shadow: var(--shadow);
+            font-weight: 500;
+            color: var(--secondary-color);
+            animation: slideIn 0.5s ease-out;
         }
 
         .btn-refresh {
-            margin-top: 20px;
-            padding: 10px 20px;
-            background-color: #4CAF50;
+            margin-top: 2rem;
+            padding: 0.8rem 2rem;
+            background-color: var(--primary-color);
             color: white;
             border: none;
-            border-radius: 5px;
+            border-radius: 50px;
             cursor: pointer;
-            font-size: 16px;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: var(--shadow);
         }
 
         .btn-refresh:hover {
-            background-color: #45a049;
+            background-color: var(--secondary-color);
+            transform: translateY(-2px);
         }
 
         footer {
-            margin-top: 30px;
-            font-size: 14px;
-            color: #777;
+            text-align: center;
+            padding: 2rem;
+            background-color: white;
+            color: var(--text-color);
+            font-size: 0.9rem;
+            width: 100%;
+            box-shadow: 0 -4px 12px rgba(0,0,0,0.05);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes scaleIn {
+            from { transform: scale(0.9); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        @keyframes slideIn {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        /* Loading animation for QR generation */
+        .loading {
+            display: inline-block;
+            position: relative;
+            width: 80px;
+            height: 80px;
+        }
+
+        .loading div {
+            position: absolute;
+            border: 4px solid var(--primary-color);
+            opacity: 1;
+            border-radius: 50%;
+            animation: loading 1s cubic-bezier(0, 0.2, 0.8, 1) infinite;
+        }
+
+        .loading div:nth-child(2) {
+            animation-delay: -0.5s;
+        }
+
+        @keyframes loading {
+            0% {
+                top: 36px;
+                left: 36px;
+                width: 0;
+                height: 0;
+                opacity: 0;
+            }
+            4.9% {
+                top: 36px;
+                left: 36px;
+                width: 0;
+                height: 0;
+                opacity: 0;
+            }
+            5% {
+                top: 36px;
+                left: 36px;
+                width: 0;
+                height: 0;
+                opacity: 1;
+            }
+            100% {
+                top: 0px;
+                left: 0px;
+                width: 72px;
+                height: 72px;
+                opacity: 0;
+            }
         }
     </style>
 </head>
 <body>
-    <h1>Escanea el código QR para conectar a WhatsApp</h1>
-    <div id="qrcode">Generando QR...</div>
-    <div id="status">Esperando la conexión...</div>
+    <div class="container">
+        <h1>Escanea el código QR para conectar a WhatsApp</h1>
+        <div id="qrcode">
+            <div class="loading"><div></div><div></div></div>
+        </div>
+        <div id="status">Esperando la conexión...</div>
+        <button class="btn-refresh" onclick="refreshQR()">Recargar QR</button>
+    </div>
 
     <footer>
         <p>&copy; 2024 ElectronicsJS. Todos los derechos reservados.</p>
@@ -69,23 +192,27 @@
     <script src="/socket.io/socket.io.js"></script>
     <script>
         const socket = io();
-        let qrCount = 0; // Inicializar el contador de QR
+        let qrCount = 0;
 
-        // Escuchar el evento 'qr' para recibir el código QR y mostrarlo en la página
         socket.on('qr', (qrCodeUrl) => {
-            qrCount++; // Incrementar el contador de QR
+            qrCount++;
             const qrDiv = document.getElementById('qrcode');
-            qrDiv.innerHTML = `<p><strong>QR ${qrCount}</strong></p><img src="${qrCodeUrl}" alt="Código QR">`;
+            qrDiv.innerHTML = `
+                <p style="margin-bottom: 1rem; color: var(--secondary-color);">
+                    <strong>QR ${qrCount}</strong>
+                </p>
+                <img src="${qrCodeUrl}" alt="Código QR">
+            `;
         });
 
-        // Escuchar el evento 'ready' para saber cuándo el cliente está listo
         socket.on('ready', (message) => {
             const statusDiv = document.getElementById('status');
             statusDiv.innerText = message;
         });
 
-        // Función para recargar el QR manualmente (opcional)
         function refreshQR() {
+            const qrDiv = document.getElementById('qrcode');
+            qrDiv.innerHTML = '<div class="loading"><div></div><div></div></div>';
             socket.emit('request-qr');
             document.getElementById('status').innerText = 'Recargando QR...';
         }

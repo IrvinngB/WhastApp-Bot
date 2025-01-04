@@ -191,6 +191,7 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'web', 'index.html'));
 });
 
-server.listen(3000, () => {
-    console.log('Servidor escuchando en http://localhost:3000');
+const port = process.env.PORT || 3000; // Usar el puerto proporcionado por OnRender
+server.listen(port, () => {
+    console.log(`Servidor escuchando en http://localhost:${port}`);
 });
