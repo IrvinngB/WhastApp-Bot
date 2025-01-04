@@ -13,8 +13,6 @@ RUN npm install
 # Copia todo el contenido del proyecto al directorio de trabajo
 COPY . .
 
-# Copia el archivo .env al contenedor
-COPY .env .env
 
 # Instala Chromium y dependencias adicionales para puppeteer
 RUN apt-get update && apt-get install -y \
