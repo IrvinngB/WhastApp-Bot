@@ -1,4 +1,4 @@
-require('dotenv').config(); // Cargar las variables de entorno
+require('dotenv').config();
 
 const { Client } = require('whatsapp-web.js');
 const qrcode = require('qrcode');
@@ -8,23 +8,35 @@ const socketIo = require('socket.io');
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const fs = require('fs');
 const path = require('path');
-const moment = require('moment-timezone'); // Añadido para manejar la zona horaria de manera precisa
-const puppeteer = require('puppeteer-core'); // Importa puppeteer-core
+const moment = require('moment-timezone');
+const puppeteer = require('puppeteer-core');
 
-const pausedUsers = {}; // Objeto para almacenar el estado pausado de cada usuario
+// Constantes y configuración
+const PANAMA_TIMEZONE = "America/Panama";
+const PORT = process.env.PORT || 3000;
+const PAUSE_DURATION = 60 * 60 * 1000; // 1 hora en milisegundos
 
-// Verificar si la clave de API está configurada
+// Estado global
+const pausedUsers = {};
+const contextStore = {};
+
+// Verificar variables de entorno requeridas
 if (!process.env.GEMINI_API_KEY) {
     throw new Error('La variable de entorno GEMINI_API_KEY no está configurada.');
 }
 
-// Inicializar Google Generative AI con la clave de API
+// Inicializar Google Generative AI
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-// Leer archivos necesarios
+// Función mejorada para cargar archivos
 function loadFile(filePath, defaultValue = '') {
     try {
-        return fs.readFileSync(filePath, 'utf8');
+        const fullPath = path.join(__dirname, filePath);
+        if (!fs.existsSync(fullPath)) {
+            console.warn(`Archivo no encontrado: ${filePath}`);
+            return defaultValue;
+        }
+        return fs.readFileSync(fullPath, 'utf8');
     } catch (error) {
         console.error(`Error leyendo el archivo ${filePath}:`, error);
         return defaultValue;
@@ -32,22 +44,17 @@ function loadFile(filePath, defaultValue = '') {
 }
 
 // Cargar información desde archivos
-const laptops = loadFile(path.join(__dirname, 'Laptops1.txt'));
-const companyInfo = loadFile(path.join(__dirname, 'info_empresa.txt'));
-const promptInstructions = loadFile(path.join(__dirname, 'promt.txt'));
+const laptops = loadFile('Laptops1.txt');
+const companyInfo = loadFile('info_empresa.txt');
+const promptInstructions = loadFile('promt.txt');
 
-// Crear un objeto para almacenar el contexto de cada usuario
-const contextStore = {};
-
-// Función para generar contenido basado en un prompt
+// Función mejorada para generar respuestas
 async function generateResponse(userMessage, contactId) {
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-
+    
     try {
-        // Recuperar el contexto existente o inicializarlo
         const userContext = contextStore[contactId] || '';
-
-        // Combinar las instrucciones del archivo promt.txt con el mensaje del usuario y el contexto previo
+        
         const customPrompt = `
         Eres un asistente virtual especializado en atender a los clientes de ElectronicsJS. Tus funciones principales incluyen:
 
@@ -69,148 +76,159 @@ async function generateResponse(userMessage, contactId) {
         Responde de manera clara, directa y breve a la siguiente solicitud del cliente: "${userMessage}".`;
 
         const result = await model.generateContent(customPrompt);
-        const response = await result.response;
-        const text = response.text();
+        const text = result.response.text();
 
-        // Actualizar el contexto del usuario
-        contextStore[contactId] = `${userContext}\nUsuario: ${userMessage}\nBot: ${text}`;
+        // Actualizar contexto limitando su tamaño
+        contextStore[contactId] = `${userContext.slice(-1000)}\nUsuario: ${userMessage}\nBot: ${text}`.trim();
 
         return text;
     } catch (error) {
         console.error('Error generando la respuesta:', error);
-        return 'Lo siento, no pude procesar tu solicitud en este momento.';
+        return 'Lo siento, estamos experimentando dificultades técnicas. Por favor, intenta nuevamente en unos momentos.';
     }
 }
 
-// Función para verificar si la tienda está abierta en horario de Panamá
+// Función mejorada para verificar horario de apertura
 function isStoreOpen() {
-    const panamaTime = moment().tz("America/Panama");
-    const day = panamaTime.day(); // 0: Domingo, 1: Lunes, ..., 6: Sábado
+    const panamaTime = moment().tz(PANAMA_TIMEZONE);
+    const day = panamaTime.day();
     const hour = panamaTime.hour();
 
-    if (day >= 1 && day <= 5) {
-        // Lunes a Viernes
-        return hour >= 9 && hour < 20;
-    } else if (day === 0 || day === 6) {
-        // Sábado y Domingo
-        return hour >= 10 && hour < 18;
-    }
-    return false;
+    const schedule = {
+        weekday: { start: 9, end: 20 },
+        weekend: { start: 10, end: 18 }
+    };
+
+    const isWeekday = day >= 1 && day <= 5;
+    const { start, end } = isWeekday ? schedule.weekday : schedule.weekend;
+
+    return hour >= start && hour < end;
 }
 
-// Configurar el cliente de WhatsApp Web
-const whatsappClient = new Client();
+// Configuración mejorada de Puppeteer
+async function launchBrowser() {
+    try {
+        const browser = await puppeteer.launch({
+            executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium',
+            args: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage',
+                '--disable-gpu'
+            ],
+            headless: 'new'
+        });
 
+        const page = await browser.newPage();
+        await page.setViewport({ width: 1280, height: 800 });
+        
+        return browser;
+    } catch (error) {
+        console.error('Error lanzando el navegador:', error);
+        throw error;
+    }
+}
+
+// Configurar el cliente de WhatsApp
+const whatsappClient = new Client({
+    puppeteer: {
+        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium',
+        args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-gpu'
+        ]
+    }
+});
+
+// Manejadores de eventos de WhatsApp
 whatsappClient.on('qr', (qr) => {
-    qrcode.toDataURL(qr, (err, qrCodeUrl) => {
-        if (err) {
-            console.error('Error generando el QR:', err);
-        } else {
-            io.emit('qr', qrCodeUrl); // Emitir el QR al frontend
-        }
-    });
+    qrcode.toDataURL(qr)
+        .then(url => io.emit('qr', url))
+        .catch(err => console.error('Error generando QR:', err));
 });
 
 whatsappClient.on('ready', () => {
-    console.log('El cliente de WhatsApp Web está listo!');
-    io.emit('ready', 'El cliente de WhatsApp Web está listo!');
+    console.log('Cliente WhatsApp Web listo');
+    io.emit('ready', 'Cliente WhatsApp Web listo');
 });
 
+// Manejador mejorado de mensajes
 whatsappClient.on('message', async message => {
     const contactId = message.from;
 
-    // Verificar si el usuario está pausado (pidió hablar con una persona real)
     if (pausedUsers[contactId]) {
-        console.log(`Usuario ${contactId} está pausado, mensajes ignorados.`);
-        return; // Ignorar todos los mensajes mientras el bot está pausado
-    }
-
-    console.log(`Mensaje recibido: ${message.body}`);
-
-    if (message.hasMedia) {
-        if (message.type === 'audio') {
-            message.reply('Se te va a comunicar con un asistente real.');
-            return;
-        } else if (['sticker', 'image', 'video', 'document', 'location'].includes(message.type)) {
-            return;
-        }
-    }
-
-    const spamWords = ['spam', 'publicidad', 'promo'];
-    const isSpam = spamWords.some(word => message.body.toLowerCase().includes(word));
-
-    if (isSpam) {
+        console.log(`Usuario ${contactId} en pausa`);
         return;
     }
 
-    let responseText;
-
-    if (message.body.toLowerCase().includes('contactar persona real')) {
-        // Pausar la interacción del bot y simular que se está contactando a una persona real
-        message.reply('Conectándote con un asistente humano. Por favor, espera.');
-
-        // Marcar al usuario como pausado
-        pausedUsers[contactId] = true;
-
-        // Reiniciar el bot después de 1 hora de inactividad
-        setTimeout(() => {
-            console.log(`Reiniciando el bot para el usuario ${contactId} después de 1 hora de inactividad.`);
-            delete pausedUsers[contactId]; // Quitar la pausa del usuario
-            whatsappClient.sendMessage(contactId, 'El asistente virtual está disponible de nuevo. ¿En qué más puedo ayudarte?');
-        }, 60 * 60 * 1000); // 1 hora en milisegundos
-
-        return; // Detener el procesamiento de mensajes
-    }
-
-    if (message.body.toLowerCase() === 'hola') {
-        responseText = '¡Hola! ¿En qué puedo ayudarte con respecto a ElectronicsJS?';
-    } else {
-        // Verificar si la tienda está abierta en horario de Panamá
-        if (isStoreOpen()) {
-            // Generar una respuesta usando la IA
-            responseText = await generateResponse(message.body, contactId);
-        } else {
-            responseText = 'Gracias por tu mensaje. Nuestra tienda está cerrada en este momento, pero responderemos tan pronto como volvamos a abrir.';
+    if (message.hasMedia) {
+        if (message.type === 'audio') {
+            await message.reply('Te conectaremos con un asistente humano.');
+            pausedUsers[contactId] = true;
         }
+        return;
     }
 
-    message.reply(responseText);
+    const messageText = message.body.toLowerCase();
+    
+    if (['spam', 'publicidad', 'promo'].some(word => messageText.includes(word))) {
+        return;
+    }
+
+    if (messageText.includes('contactar persona real')) {
+        await message.reply('Conectando con un asistente humano. Por favor espera.');
+        pausedUsers[contactId] = true;
+        
+        setTimeout(() => {
+            if (pausedUsers[contactId]) {
+                delete pausedUsers[contactId];
+                whatsappClient.sendMessage(contactId, 'El asistente virtual está nuevamente disponible. ¿En qué puedo ayudarte?');
+            }
+        }, PAUSE_DURATION);
+        
+        return;
+    }
+
+    try {
+        const responseText = messageText === 'hola' 
+            ? '¡Hola! ¿En qué puedo ayudarte con respecto a ElectronicsJS?'
+            : isStoreOpen()
+                ? await generateResponse(message.body, contactId)
+                : 'Nuestra tienda está cerrada en este momento. Horario: Lun-Vie 9am-8pm, Sáb-Dom 10am-6pm (hora de Panamá)';
+
+        await message.reply(responseText);
+    } catch (error) {
+        console.error('Error procesando mensaje:', error);
+        await message.reply('Lo siento, ocurrió un error. Por favor, intenta nuevamente.');
+    }
 });
 
-whatsappClient.initialize();
+// Inicializar WhatsApp
+whatsappClient.initialize().catch(console.error);
 
 // Configurar Express y Socket.IO
 const app = express();
 const server = http.createServer(app);
 const io = socketIo(server);
 
-// Servir archivos estáticos desde la carpeta 'web'
 app.use(express.static(path.join(__dirname, 'web')));
 
-// Servir el archivo index.html en la ruta raíz
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'web', 'index.html'));
 });
 
-const port = process.env.PORT || 3000; // Usar el puerto proporcionado por OnRender
-server.listen(port, () => {
-    console.log(`Servidor escuchando en http://localhost:${port}`);
+// Iniciar servidor
+server.listen(PORT, () => {
+    console.log(`Servidor ejecutándose en http://localhost:${PORT}`);
 });
 
-// Configuración de Puppeteer con --no-sandbox
-async function launchBrowser() {
-    try {
-        const browser = await puppeteer.launch({
-            executablePath: '/usr/bin/chromium', // Cambia esto si la ruta de Chromium es diferente
-            args: ['--no-sandbox', '--disable-setuid-sandbox']
-        });
+// Manejo de errores no capturados
+process.on('unhandledRejection', (error) => {
+    console.error('Error no manejado:', error);
+});
 
-        const page = await browser.newPage();
-        await page.goto('https://example.com');
-        // Continuar con el resto de tu código...
-    } catch (error) {
-        console.error('Error lanzando el navegador:', error);
-    }
-}
-
-launchBrowser();
+process.on('uncaughtException', (error) => {
+    console.error('Excepción no capturada:', error);
+});
