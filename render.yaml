@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: whatsapp-bot
+    env: docker
+    region: ohio
+    plan: free
+    branch: main
+    numInstances: 1
+    healthCheckPath: /
+    envVars:
+      - key: PORT
+        value: 3000
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: NODE_ENV
+        value: production

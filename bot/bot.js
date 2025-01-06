@@ -11,6 +11,34 @@ const path = require('path');
 const moment = require('moment-timezone');
 const puppeteer = require('puppeteer-core');
 
+
+// Manejo de memoria
+const used = process.memoryUsage();
+console.log('Uso de memoria:', {
+    rss: `${Math.round(used.rss / 1024 / 1024)}MB`,
+    heapTotal: `${Math.round(used.heapTotal / 1024 / 1024)}MB`,
+    heapUsed: `${Math.round(used.heapUsed / 1024 / 1024)}MB`
+});
+
+// Limpieza periódica de memoria
+setInterval(() => {
+    global.gc();
+}, 30 * 60 * 1000); // Cada 30 minutos
+
+
+// Mantener vivo el servicio
+const keepAlive = () => {
+    http.get(`http://${process.env.RENDER_EXTERNAL_URL}`, () => {
+        console.log('Ping enviado para mantener el servicio activo');
+    }).on('error', (err) => {
+        console.error('Error en ping:', err);
+    });
+};
+
+if (process.env.RENDER_EXTERNAL_URL) {
+    setInterval(keepAlive, 14 * 60 * 1000); // Cada 14 minutos
+}
+
 // Constantes y configuración
 const PANAMA_TIMEZONE = "America/Panama";
 const PORT = process.env.PORT || 3000;
