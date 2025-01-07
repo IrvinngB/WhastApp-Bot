@@ -10,7 +10,7 @@ const fs = require('fs');
 const path = require('path');
 const moment = require('moment-timezone');
 const puppeteer = require('puppeteer-core');
-
+const StabilityManager = require('./stability');
 
 // Manejo de memoria
 const used = process.memoryUsage();
@@ -24,20 +24,6 @@ console.log('Uso de memoria:', {
 setInterval(() => {
     global.gc();
 }, 30 * 60 * 1000); // Cada 30 minutos
-
-
-// Mantener vivo el servicio
-const keepAlive = () => {
-    http.get(`http://${process.env.RENDER_EXTERNAL_URL}`, () => {
-        console.log('Ping enviado para mantener el servicio activo');
-    }).on('error', (err) => {
-        console.error('Error en ping:', err);
-    });
-};
-
-if (process.env.RENDER_EXTERNAL_URL) {
-    setInterval(keepAlive, 14 * 60 * 1000); // Cada 14 minutos
-}
 
 // Constantes y configuración
 const PANAMA_TIMEZONE = "America/Panama";
@@ -133,30 +119,6 @@ function isStoreOpen() {
     return hour >= start && hour < end;
 }
 
-// Configuración mejorada de Puppeteer
-async function launchBrowser() {
-    try {
-        const browser = await puppeteer.launch({
-            executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium',
-            args: [
-                '--no-sandbox',
-                '--disable-setuid-sandbox',
-                '--disable-dev-shm-usage',
-                '--disable-gpu'
-            ],
-            headless: 'new'
-        });
-
-        const page = await browser.newPage();
-        await page.setViewport({ width: 1280, height: 800 });
-        
-        return browser;
-    } catch (error) {
-        console.error('Error lanzando el navegador:', error);
-        throw error;
-    }
-}
-
 // Configurar el cliente de WhatsApp
 const whatsappClient = new Client({
     puppeteer: {
@@ -169,6 +131,14 @@ const whatsappClient = new Client({
         ]
     }
 });
+
+// Configurar Express y Socket.IO
+const app = express();
+const server = http.createServer(app);
+const io = socketIo(server);
+
+// Inicializar StabilityManager
+const stabilityManager = new StabilityManager(whatsappClient);
 
 // Manejadores de eventos de WhatsApp
 whatsappClient.on('qr', (qr) => {
@@ -184,6 +154,8 @@ whatsappClient.on('ready', () => {
 
 // Manejador mejorado de mensajes
 whatsappClient.on('message', async message => {
+    stabilityManager.updateLastMessage(); // Actualizar último mensaje recibido
+    
     const contactId = message.from;
 
     if (pausedUsers[contactId]) {
@@ -233,19 +205,14 @@ whatsappClient.on('message', async message => {
     }
 });
 
-// Inicializar WhatsApp
-whatsappClient.initialize().catch(console.error);
-
-// Configurar Express y Socket.IO
-const app = express();
-const server = http.createServer(app);
-const io = socketIo(server);
-
 app.use(express.static(path.join(__dirname, 'web')));
 
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'web', 'index.html'));
 });
+
+// Iniciar el sistema de estabilidad
+stabilityManager.startStabilitySystem(app);
 
 // Iniciar servidor
 server.listen(PORT, () => {
