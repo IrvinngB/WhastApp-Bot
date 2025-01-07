@@ -15,8 +15,10 @@ RUN apt-get update && apt-get install -y \
     fonts-freefont-ttf \
     libxss1 \
     curl \
-    --no-install-recommends \
-    && rm -rf /var/lib/apt/lists/*
+    --no-install-recommends && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
 
 # Set environment variables
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
