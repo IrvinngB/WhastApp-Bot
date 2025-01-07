@@ -14,24 +14,43 @@ RUN apt-get update && apt-get install -y \
     fonts-kacst \
     fonts-freefont-ttf \
     libxss1 \
+    curl \
     --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
-# Set environment variables for Puppeteer
+# Set environment variables
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
-    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium \
+    NODE_ENV=production \
+    NODE_OPTIONS="--max-old-space-size=2048" \
+    TZ=America/Panama
 
-# Copy package files
+# Copy package files from root
 COPY package*.json ./
 
 # Install dependencies
-RUN npm install
+RUN npm ci --only=production
 
 # Copy project files
 COPY . .
 
+# Create directory for session data
+RUN mkdir -p .wwebjs_auth/session-client && \
+    chown -R node:node .wwebjs_auth
+
+# Create bot directory if it doesn't exist and set permissions
+RUN mkdir -p bot/web && \
+    chown -R node:node bot
+
+# Switch to non-root user
+USER node
+
 # Expose port
 EXPOSE 3000
 
-# Start the application
-CMD ["node", "bot/bot.js"]
+# Healthcheck
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:3000/health || exit 1
+
+# Start the application with garbage collection enabled
+CMD ["node", "--expose-gc", "bot/bot.js"]
