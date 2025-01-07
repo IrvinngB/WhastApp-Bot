@@ -9,7 +9,7 @@ const { GoogleGenerativeAI } = require("@google/generative-ai");
 const fs = require('fs');
 const path = require('path');
 const moment = require('moment-timezone');
-const puppeteer = require('puppeteer-core');
+const puppeteer = require('puppeteer');  
 const StabilityManager = require('./stability');
 
 // Manejo de memoria
