@@ -4,8 +4,8 @@ FROM node:18-bullseye-slim
 # Set working directory
 WORKDIR /usr/src/app
 
-# Install Chromium and required dependencies
-RUN apt-get update && apt-get install -y \
+# Update the system and install Chromium and required dependencies
+RUN apt-get update && apt-get upgrade -y && apt-get install -y \
     chromium \
     chromium-sandbox \
     fonts-ipafont-gothic \
@@ -16,14 +16,10 @@ RUN apt-get update && apt-get install -y \
     libxss1 \
     curl \
     --no-install-recommends && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+    apt-get clean && rm -rf /var/lib/apt/lists/*
 
-
-# Set environment variables
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
-    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium \
-    NODE_ENV=production \
+# Set environment variables (remove Puppeteer environment variables)
+ENV NODE_ENV=production \
     NODE_OPTIONS="--max-old-space-size=2048" \
     TZ=America/Panama
 
