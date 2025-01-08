@@ -1,46 +1,38 @@
-# Usa la imagen oficial de Node.js
-FROM node:18-bullseye-slim
+# Usamos la imagen base de Puppeteer que ya incluye Chrome y la mayoría de dependencias necesarias
+FROM ghcr.io/puppeteer/puppeteer:21.5.2
 
-# Establece el directorio de trabajo
+# Establece el directorio donde se colocará y ejecutará la aplicación
 WORKDIR /usr/src/app
 
-# Instala las dependencias necesarias
-RUN apt-get update \
-    && apt-get install -y wget gnupg \
-    && wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - \
-    && sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list' \
-    && apt-get update \
-    && apt-get install -y google-chrome-stable \
-       fonts-ipafont-gothic \
-       fonts-wqy-zenhei \
-       fonts-thai-tlwg \
-       fonts-khmeros-core \
-       fonts-liberation \
-       libxss1 \
-       libxtst6 \
-       libatk-bridge2.0-0 \
-       libgtk-3-0 \
-       libasound2 \
-       libgbm1 \
-       xvfb \
-    && rm -rf /var/lib/apt/lists/* \
-    && rm -rf /src/*.deb
+# Cambia temporalmente al usuario root para poder instalar paquetes
+USER root
 
-# Copia los archivos del proyecto
+# Instala las dependencias adicionales necesarias
+RUN apt-get update \
+    && apt-get install -y \
+        xvfb \
+        libgbm-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copia los archivos de dependencias de Node.js
 COPY package*.json ./
 
-# Instala las dependencias de Node.js
-RUN npm install
+# Instala las dependencias de Node.js en modo producción
+RUN npm ci
 
-# Copia el resto de los archivos
+# Copia todo el código fuente de la aplicación
 COPY . .
 
-# Variables de entorno para Puppeteer
+# Configura las variables de entorno necesarias para Puppeteer
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
-ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome-stable
 
-# Expone el puerto
+# Expone el puerto que usará la aplicación
 EXPOSE 3000
 
-# Inicia la aplicación con Xvfb
-CMD ["xvfb-run", "--server-args='-screen 0 1280x800x24'", "node", "bot.js"]
+# Cambia al usuario no privilegiado pptruser por seguridad
+# Este usuario viene preconfigurado en la imagen base de Puppeteer
+USER pptruser
+
+# Comando para iniciar la aplicación
+CMD ["node", "bot.js"]
