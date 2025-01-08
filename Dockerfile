@@ -35,4 +35,4 @@ EXPOSE 3000
 USER pptruser
 
 # Comando para iniciar la aplicación
-CMD ["node", "bot.js"]
+CMD ["node", "bot/bot.js"]
