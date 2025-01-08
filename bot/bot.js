@@ -121,7 +121,7 @@ function isStoreOpen() {
 // Configurar el cliente de WhatsApp con opciones optimizadas para Render
 const whatsappClient = new Client({
     puppeteer: {
-        executablePath: '/usr/bin/chromium-browser',
+        executablePath: '/usr/bin/google-chrome',
         args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
@@ -131,7 +131,10 @@ const whatsappClient = new Client({
             '--disable-dev-tools',
             '--no-zygote',
             '--single-process',
-            '--disable-extensions'
+            '--disable-extensions',
+            '--disable-accelerated-2d-canvas',
+            '--disable-gl-drawing-for-tests',
+            '--use-gl=swiftshader'
         ],
         headless: "new",
         timeout: 0
