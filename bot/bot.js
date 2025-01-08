@@ -9,7 +9,6 @@ const { GoogleGenerativeAI } = require("@google/generative-ai");
 const fs = require('fs');
 const path = require('path');
 const moment = require('moment-timezone');
-const puppeteer = require('puppeteer');  
 const StabilityManager = require('./stability');
 
 // Manejo de memoria
@@ -119,16 +118,23 @@ function isStoreOpen() {
     return hour >= start && hour < end;
 }
 
-// Configurar el cliente de WhatsApp
+// Configurar el cliente de WhatsApp con opciones optimizadas para Render
 const whatsappClient = new Client({
     puppeteer: {
-        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium',
+        executablePath: '/usr/bin/chromium-browser',
         args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
             '--disable-dev-shm-usage',
-            '--disable-gpu'
-        ]
+            '--disable-gpu',
+            '--disable-software-rasterizer',
+            '--disable-dev-tools',
+            '--no-zygote',
+            '--single-process',
+            '--disable-extensions'
+        ],
+        headless: "new",
+        timeout: 0
     }
 });
 
@@ -154,7 +160,7 @@ whatsappClient.on('ready', () => {
 
 // Manejador mejorado de mensajes
 whatsappClient.on('message', async message => {
-    stabilityManager.updateLastMessage(); // Actualizar último mensaje recibido
+    stabilityManager.updateLastMessage();
     
     const contactId = message.from;
 
@@ -205,6 +211,7 @@ whatsappClient.on('message', async message => {
     }
 });
 
+// Configuración de rutas Express
 app.use(express.static(path.join(__dirname, 'web')));
 
 app.get('/', (req, res) => {
