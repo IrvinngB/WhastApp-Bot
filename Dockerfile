@@ -29,7 +29,7 @@ COPY . .
 # Configura las variables de entorno necesarias
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
     PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome-stable \
-    NODE_OPTIONS="--max-old-space-size=512 --expose-gc" \
+    NODE_OPTIONS="--max-old-space-size=512" \
     # Variables para gestión de memoria de Puppeteer
     CHROMIUM_FLAGS="--disable-dev-shm-usage --no-sandbox --disable-gpu --disable-software-rasterizer --js-flags='--expose-gc'" \
     # Variables para el sistema de estabilidad
