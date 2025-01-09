@@ -32,6 +32,7 @@ const PAUSE_DURATION = 60 * 60 * 1000; // 1 hora en milisegundos
 // Estado global
 const pausedUsers = {};
 const contextStore = {};
+const userRequestsHuman = {};
 
 // Verificar variables de entorno requeridas
 if (!process.env.GEMINI_API_KEY) {
@@ -61,6 +62,30 @@ const laptops = loadFile('Laptops1.txt');
 const companyInfo = loadFile('info_empresa.txt');
 const promptInstructions = loadFile('promt.txt');
 
+// Mensajes del sistema
+const SYSTEM_MESSAGES = {
+    WELCOME: `¡Hola! 👋 Soy el asistente virtual de ElectronicsJS. Estoy aquí para ayudarte con información sobre nuestros productos y servicios. 
+
+Si en cualquier momento deseas hablar con un representante humano, puedes escribir "agente" o "hablar con persona real".
+
+¿En qué puedo ayudarte hoy?`,
+    
+    HUMAN_REQUEST: `Entiendo que prefieres hablar con un representante humano. Voy a conectarte con uno de nuestros agentes.
+
+⏳ Por favor, ten en cuenta que puede haber un tiempo de espera. Mientras tanto, ¿hay algo específico en lo que pueda ayudarte?
+
+Para volver al asistente virtual en cualquier momento, escribe "volver al bot".`,
+    
+    STORE_CLOSED: `🕒 Nuestra tienda está cerrada en este momento.
+
+Horario de atención:
+- Lunes a Viernes: 9:00 AM - 8:00 PM
+- Sábados y Domingos: 10:00 AM - 6:00 PM
+(Hora de Panamá)
+
+¿En qué puedo ayudarte mientras tanto?`
+};
+
 // Función mejorada para generar respuestas
 async function generateResponse(userMessage, contactId) {
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
@@ -69,24 +94,49 @@ async function generateResponse(userMessage, contactId) {
         const userContext = contextStore[contactId] || '';
         
         const customPrompt = `
-        Eres un asistente virtual especializado en atender a los clientes de ElectronicsJS. Tus funciones principales incluyen:
+        Eres un asistente virtual amigable y profesional de ElectronicsJS. Tu objetivo es proporcionar la mejor atención posible siguiendo estas pautas:
 
-        1. **Proporcionar Información de la Empresa:** Ofrecer detalles sobre ElectronicsJS, como misión, visión, valores, productos, ubicación, horarios de atención y políticas de la tienda.
+        PERSONALIDAD:
+        - Sé amable y empático, pero mantén un tono profesional
+        - Usa emojis ocasionalmente para dar calidez a tus respuestas
+        - Sé conciso pero informativo
+        - Si no estás seguro de algo, ofrece conectar con un agente humano
 
-        2. **Responder Solicitudes de Información:** Atender preguntas sobre los productos disponibles, incluyendo componentes y especificaciones de las laptops listadas.
+        FUNCIONES PRINCIPALES:
+        1. Información de Productos:
+           - Proporciona detalles precisos sobre laptops y productos
+           - Menciona especificaciones técnicas cuando sea relevante
+           - Sugiere productos según las necesidades del cliente
 
-        3. **Verificar Horarios de Apertura:** Antes de responder preguntas sobre la tienda, verifica si está abierta según la zona horaria de Panamá.
+        2. Información de la Empresa:
+           - Comparte detalles sobre ElectronicsJS: ${companyInfo}
+           - Informa sobre ubicación, horarios y políticas
 
-        4. **Manejar Preguntas Generales:** Si recibes preguntas no relacionadas con ElectronicsJS, indica que solo puedes proporcionar información sobre la empresa y sus productos.
+        3. Servicio al Cliente:
+           - Responde preguntas sobre garantías y soporte
+           - Explica procesos de compra y políticas de devolución
+           - Ofrece conectar con un agente humano cuando sea necesario
 
-        5. **Respetar Privacidad:** No puedes divulgar información personal o sensible de los clientes ni información confidencial de la empresa.
+        4. Gestión de Consultas:
+           - Si la pregunta está fuera de tu alcance, sugiere hablar con un agente
+           - Para temas sensibles o complejos, recomienda atención personalizada
 
-        **Información de Referencia:**
-        - **ElectronicsJS:** ${companyInfo}
-        - **Laptops Disponibles:** ${laptops}
-        - **Contexto del Usuario:** ${userContext}
+        RESTRICCIONES:
+        - No compartas información confidencial
+        - No hagas promesas sobre precios o disponibilidad
+        - No proporciones información personal de clientes
+        - No tomes decisiones sobre casos especiales
 
-        Responde de manera clara, directa y breve a la siguiente solicitud del cliente: "${userMessage}".`;
+        CONTEXTO ACTUAL:
+        - Historial del usuario: ${userContext}
+        - Productos disponibles: ${laptops}
+
+        RESPONDE A: "${userMessage}"
+        
+        FORMATO DE RESPUESTA:
+        - Mantén las respuestas concisas (máximo 4-5 líneas)
+        - Usa viñetas para listas largas
+        - Incluye emojis relevantes ocasionalmente`;
 
         const result = await model.generateContent(customPrompt);
         const text = result.response.text();
@@ -97,7 +147,7 @@ async function generateResponse(userMessage, contactId) {
         return text;
     } catch (error) {
         console.error('Error generando la respuesta:', error);
-        return 'Lo siento, estamos experimentando dificultades técnicas. Por favor, intenta nuevamente en unos momentos.';
+        return 'Lo siento, estamos experimentando dificultades técnicas. Por favor, intenta nuevamente en unos momentos. Si prefieres, puedes escribir "agente" para hablar con una persona real.';
     }
 }
 
@@ -156,38 +206,35 @@ whatsappClient.on('ready', () => {
     io.emit('ready', 'Cliente WhatsApp Web listo');
 });
 
+// Función para verificar si el mensaje solicita atención humana
+function isRequestingHuman(message) {
+    const humanKeywords = ['agente', 'persona real', 'humano', 'representante', 'asesor', 'hablar con alguien'];
+    return humanKeywords.some(keyword => message.toLowerCase().includes(keyword));
+}
+
+// Función para verificar si el usuario quiere volver al bot
+function isReturningToBot(message) {
+    const botKeywords = ['volver al bot', 'bot', 'asistente virtual', 'chatbot'];
+    return botKeywords.some(keyword => message.toLowerCase().includes(keyword));
+}
+
 // Manejador mejorado de mensajes
 whatsappClient.on('message', async message => {
     stabilityManager.updateLastMessage();
     
     const contactId = message.from;
-
-    if (pausedUsers[contactId]) {
-        console.log(`Usuario ${contactId} en pausa`);
-        return;
-    }
-
-    if (message.hasMedia) {
-        if (message.type === 'audio') {
-            await message.reply('Te conectaremos con un asistente humano.');
-            pausedUsers[contactId] = true;
-        }
-        return;
-    }
-
     const messageText = message.body.toLowerCase();
-    
-    if (['spam', 'publicidad', 'promo'].some(word => messageText.includes(word))) {
-        return;
-    }
 
-    if (messageText.includes('contactar persona real')) {
-        await message.reply('Conectando con un asistente humano. Por favor espera.');
+    // Verificar si el usuario está solicitando atención humana
+    if (isRequestingHuman(messageText)) {
+        await message.reply(SYSTEM_MESSAGES.HUMAN_REQUEST);
         pausedUsers[contactId] = true;
+        userRequestsHuman[contactId] = true;
         
         setTimeout(() => {
             if (pausedUsers[contactId]) {
                 delete pausedUsers[contactId];
+                delete userRequestsHuman[contactId];
                 whatsappClient.sendMessage(contactId, 'El asistente virtual está nuevamente disponible. ¿En qué puedo ayudarte?');
             }
         }, PAUSE_DURATION);
@@ -195,17 +242,41 @@ whatsappClient.on('message', async message => {
         return;
     }
 
+    // Verificar si el usuario quiere volver al bot
+    if (isReturningToBot(messageText) && userRequestsHuman[contactId]) {
+        delete pausedUsers[contactId];
+        delete userRequestsHuman[contactId];
+        await message.reply('¡Bienvenido de vuelta! ¿En qué puedo ayudarte?');
+        return;
+    }
+
+    if (pausedUsers[contactId]) {
+        return;
+    }
+
+    if (message.hasMedia) {
+        if (message.type === 'audio') {
+            await message.reply(SYSTEM_MESSAGES.HUMAN_REQUEST);
+            pausedUsers[contactId] = true;
+        }
+        return;
+    }
+
+    if (['spam', 'publicidad', 'promo'].some(word => messageText.includes(word))) {
+        return;
+    }
+
     try {
         const responseText = messageText === 'hola' 
-            ? '¡Hola! ¿En qué puedo ayudarte con respecto a ElectronicsJS?'
+            ? SYSTEM_MESSAGES.WELCOME
             : isStoreOpen()
                 ? await generateResponse(message.body, contactId)
-                : 'Nuestra tienda está cerrada en este momento. Horario: Lun-Vie 9am-8pm, Sáb-Dom 10am-6pm (hora de Panamá)';
+                : SYSTEM_MESSAGES.STORE_CLOSED;
 
         await message.reply(responseText);
     } catch (error) {
         console.error('Error procesando mensaje:', error);
-        await message.reply('Lo siento, ocurrió un error. Por favor, intenta nuevamente.');
+        await message.reply('Lo siento, ocurrió un error. Por favor, intenta nuevamente o escribe "agente" para hablar con una persona real.');
     }
 });
 
