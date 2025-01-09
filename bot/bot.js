@@ -508,6 +508,9 @@ const whatsappClient = new Client({
     restartOnAuthFail: true
 });
 
+// Inicializar el StabilityManager
+const stabilityManager = new StabilityManager(whatsappClient);
+
 // Manejadores de eventos de WhatsApp mejorados
 whatsappClient.on('qr', (qr) => {
     qrcode.toDataURL(qr)
