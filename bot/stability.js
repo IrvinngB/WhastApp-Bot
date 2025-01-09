@@ -9,39 +9,45 @@ class StabilityManager {
         this.keepAliveInterval = null;
         this.reconnectAttempts = 0;
         this.isReconnecting = false;
+        this.initialized = false;
+        this.pingFailures = 0;
+        this.isDeployment = false;
+        this.deploymentTimeout = null;
         
         // Constantes optimizadas
-        this.MAX_RECONNECT_ATTEMPTS = 10;    // Aumentado para mayor resistencia
-        this.RECONNECT_DELAY = 10000;        // Delay base aumentado a 10 segundos
-        this.PING_INTERVAL = 5 * 60 * 1000;  // 5 minutos
-        this.HEALTH_CHECK_INTERVAL = 2 * 60 * 1000; // 2 minutos
-        this.MAX_SILENCE = 60 * 60 * 1000;   // 1 hora
+        this.MAX_RECONNECT_ATTEMPTS = 10;
+        this.RECONNECT_DELAY = 10000;
+        this.PING_INTERVAL = 5 * 60 * 1000;
+        this.HEALTH_CHECK_INTERVAL = 2 * 60 * 1000;
+        this.MAX_SILENCE = 30 * 60 * 1000;
+        this.MAX_PING_FAILURES = 3;
+        this.DEPLOYMENT_TIMEOUT = 10 * 60 * 1000; // 10 minutos
+        this.PING_TIMEOUT = 30000; // 30 segundos
         
-        // URL para el ping usando variable de entorno con fallback
         this.PING_URL = process.env.APP_URL || 'https://whastapp-bot-muv1.onrender.com';
         
-        // Sistema de monitoreo mejorado
         this.healthCheck = {
             lastPing: Date.now(),
             lastMessage: Date.now(),
             isHealthy: true,
+            connectionState: 'disconnected',
+            deploymentState: 'stable',
             metrics: {
                 totalReconnects: 0,
                 lastRestart: null,
                 uptime: Date.now(),
-                errors: []
+                errors: [],
+                lastSuccessfulConnection: null,
+                deploymentAttempts: 0,
+                lastDeploymentTime: null
             }
         };
 
-        // Manejo de memoria
         this.setupMemoryMonitoring();
-        
-        // Inicializar eventos
         this.setupEventHandlers();
     }
 
     setupMemoryMonitoring() {
-        // Monitorear uso de memoria cada 5 minutos
         setInterval(() => {
             const used = process.memoryUsage();
             const metrics = {
@@ -50,8 +56,7 @@ class StabilityManager {
                 heapUsed: `${Math.round(used.heapUsed / 1024 / 1024)}MB`
             };
 
-            // Si el uso de memoria es alto, forzar GC si está disponible
-            if (used.heapUsed > 500 * 1024 * 1024) { // 500MB
+            if (used.heapUsed > 500 * 1024 * 1024) {
                 try {
                     if (global.gc) {
                         global.gc();
@@ -69,16 +74,16 @@ class StabilityManager {
     setupEventHandlers() {
         this.whatsappClient.on('disconnected', async (reason) => {
             console.log('Cliente desconectado:', reason);
-            
-            // Registrar el evento
+            this.healthCheck.connectionState = 'disconnected';
             this.logError('disconnect', reason);
             
-            if (reason === 'LOGOUT') {
+            const isIntentionalDisconnect = reason === 'NAVIGATION' || reason === 'LOGOUT';
+            
+            if (isIntentionalDisconnect) {
                 await this.clearSession();
             }
 
-            // Prevenir múltiples intentos simultáneos de reconexión
-            if (!this.isReconnecting) {
+            if (!this.isReconnecting && !isIntentionalDisconnect) {
                 this.isReconnecting = true;
                 await this.handleReconnection(reason);
                 this.isReconnecting = false;
@@ -87,6 +92,7 @@ class StabilityManager {
 
         this.whatsappClient.on('auth_failure', async (error) => {
             console.log('Error de autenticación:', error);
+            this.healthCheck.connectionState = 'auth_failed';
             this.logError('auth_failure', error);
             await this.clearSession();
             await this.handleReconnection('AUTH_FAILURE');
@@ -94,44 +100,111 @@ class StabilityManager {
 
         this.whatsappClient.on('ready', () => {
             console.log('Cliente WhatsApp Web listo');
+            this.healthCheck.connectionState = 'connected';
+            this.healthCheck.metrics.lastSuccessfulConnection = Date.now();
             this.reconnectAttempts = 0;
-            this.healthCheck.metrics.lastRestart = null;
+            this.pingFailures = 0;
+            this.initialized = true;
             this.healthCheck.isHealthy = true;
         });
 
-        // Manejo de errores de puppeteer
-        this.whatsappClient.on('chrome_error', async (error) => {
-            console.error('Error de Chrome:', error);
-            this.logError('chrome_error', error);
-            await this.handleReconnection('CHROME_ERROR');
+        this.whatsappClient.on('loading_screen', (percent, message) => {
+            console.log(`Cargando: ${percent}% - ${message}`);
+            this.healthCheck.connectionState = 'loading';
+        });
+
+        this.whatsappClient.on('qr', () => {
+            this.healthCheck.connectionState = 'waiting_for_qr';
         });
     }
 
-    logError(type, error) {
-        const errorLog = {
-            type,
-            timestamp: new Date().toISOString(),
-            message: error.toString(),
-            stack: error.stack
-        };
+    handleDeploymentState(status) {
+        if (status === 502) {
+            if (!this.isDeployment) {
+                console.log('Detectado posible despliegue en curso');
+                this.isDeployment = true;
+                this.healthCheck.deploymentState = 'in_progress';
+                this.healthCheck.metrics.lastDeploymentTime = Date.now();
+                this.healthCheck.metrics.deploymentAttempts++;
 
-        this.healthCheck.metrics.errors.push(errorLog);
-        
-        // Mantener solo los últimos 50 errores
-        if (this.healthCheck.metrics.errors.length > 50) {
-            this.healthCheck.metrics.errors.shift();
+                // Limpiar timeout anterior si existe
+                if (this.deploymentTimeout) {
+                    clearTimeout(this.deploymentTimeout);
+                }
+
+                // Establecer nuevo timeout para el despliegue
+                this.deploymentTimeout = setTimeout(() => {
+                    if (this.isDeployment) {
+                        console.log('Timeout de despliegue alcanzado, reiniciando servicios');
+                        this.isDeployment = false;
+                        this.healthCheck.deploymentState = 'failed';
+                        this.restartServices();
+                    }
+                }, this.DEPLOYMENT_TIMEOUT);
+            }
+            return true;
         }
+
+        if (this.isDeployment && status === 200) {
+            console.log('Despliegue completado exitosamente');
+            this.isDeployment = false;
+            this.healthCheck.deploymentState = 'stable';
+            if (this.deploymentTimeout) {
+                clearTimeout(this.deploymentTimeout);
+                this.deploymentTimeout = null;
+            }
+            return true;
+        }
+
+        return false;
     }
 
-    async clearSession() {
-        const sessionPath = path.join(process.cwd(), '.wwebjs_auth/session-client');
-        
+    async keepAliveWithRetry() {
         try {
-            await fs.rm(sessionPath, { recursive: true, force: true });
-            console.log('Sesión eliminada correctamente');
+            const response = await axios.get(this.PING_URL, {
+                timeout: this.PING_TIMEOUT,
+                validateStatus: status => status >= 200 && status < 500,
+                headers: {
+                    'User-Agent': 'WhatsAppBot/1.0 HealthCheck'
+                }
+            });
+            
+            const isDeploymentRelated = this.handleDeploymentState(response.status);
+            
+            if (!isDeploymentRelated) {
+                this.healthCheck.lastPing = Date.now();
+                console.log(`Ping exitoso: ${response.status}`);
+                this.pingFailures = 0;
+                this.reconnectAttempts = 0;
+            }
         } catch (error) {
-            console.error('Error eliminando sesión:', error);
-            this.logError('session_clear', error);
+            console.error('Error en ping:', {
+                message: error.message,
+                url: this.PING_URL,
+                code: error.code,
+                response: error.response?.status
+            });
+
+            if (error.response?.status === 502) {
+                this.handleDeploymentState(502);
+                return;
+            }
+
+            this.pingFailures++;
+            
+            if (this.pingFailures >= this.MAX_PING_FAILURES) {
+                console.log(`Máximo de fallos de ping (${this.MAX_PING_FAILURES}) alcanzado, reiniciando servicios`);
+                await this.restartServices();
+                return;
+            }
+            
+            const backoffDelay = Math.min(
+                15000 * Math.pow(1.5, this.pingFailures), 
+                180000
+            );
+            
+            console.log(`Reintentando ping en ${backoffDelay/1000}s...`);
+            setTimeout(() => this.keepAliveWithRetry(), backoffDelay);
         }
     }
 
@@ -141,7 +214,6 @@ class StabilityManager {
             this.healthCheck.metrics.lastRestart = Date.now();
             this.healthCheck.isHealthy = false;
             
-            // Reiniciar el proceso después de limpiar
             await this.cleanupBeforeExit();
             process.exit(1);
             return;
@@ -150,71 +222,124 @@ class StabilityManager {
         this.reconnectAttempts++;
         this.healthCheck.metrics.totalReconnects++;
         
-        // Backoff exponencial con jitter
         const baseDelay = this.RECONNECT_DELAY * Math.pow(1.5, this.reconnectAttempts - 1);
         const jitter = Math.random() * 1000;
-        const delay = Math.min(baseDelay + jitter, 300000); // máximo 5 minutos
+        const delay = Math.min(baseDelay + jitter, 300000);
 
         console.log(`Intento de reconexión ${this.reconnectAttempts}/${this.MAX_RECONNECT_ATTEMPTS} en ${delay/1000}s...`);
         
         await new Promise(resolve => setTimeout(resolve, delay));
 
         try {
+            if (reason === 'AUTH_FAILURE' || this.reconnectAttempts > 3) {
+                await this.clearSession();
+            }
+
+            if (this.initialized) {
+                await this.whatsappClient.destroy();
+                await new Promise(resolve => setTimeout(resolve, 5000));
+            }
+
             await this.whatsappClient.initialize();
         } catch (error) {
             console.error('Error en la reconexión:', error);
             this.logError('reconnection', error);
+            
+            if (error.message.includes('ERR_FAILED') || error.message.includes('timeout')) {
+                await this.clearSession();
+            }
+            
             await this.handleReconnection(reason);
+        }
+    }
+
+    async clearSession() {
+        const sessionPath = path.join(process.cwd(), '.wwebjs_auth/session-client');
+        
+        try {
+            await fs.rm(sessionPath, { recursive: true, force: true });
+            console.log('Sesión eliminada correctamente');
+            await new Promise(resolve => setTimeout(resolve, 2000));
+        } catch (error) {
+            console.error('Error eliminando sesión:', error);
+            this.logError('session_clear', error);
+        }
+    }
+
+    logError(type, error) {
+        const errorLog = {
+            type,
+            timestamp: new Date().toISOString(),
+            message: error.toString(),
+            stack: error.stack,
+            deploymentState: this.healthCheck.deploymentState
+        };
+
+        this.healthCheck.metrics.errors.push(errorLog);
+        
+        if (this.healthCheck.metrics.errors.length > 50) {
+            this.healthCheck.metrics.errors.shift();
+        }
+    }
+
+    updateHealth() {
+        const now = Date.now();
+        
+        const lastActivityDelta = Math.min(
+            now - this.healthCheck.lastPing,
+            now - this.healthCheck.lastMessage
+        );
+        
+        this.healthCheck.isHealthy = 
+            lastActivityDelta < this.MAX_SILENCE &&
+            this.healthCheck.connectionState === 'connected' &&
+            this.healthCheck.deploymentState === 'stable';
+
+        this.healthCheck.metrics.uptime = now - this.healthCheck.metrics.uptime;
+
+        if (!this.healthCheck.isHealthy && !this.isReconnecting && !this.isDeployment) {
+            console.warn('Sistema posiblemente inactivo, reiniciando servicios...');
+            this.restartServices();
+        }
+    }
+
+    async restartServices() {
+        if (this.isReconnecting || this.isDeployment) {
+            console.log('Ya hay una reconexión o despliegue en progreso, saltando reinicio de servicios');
+            return;
+        }
+
+        try {
+            this.isReconnecting = true;
+            this.healthCheck.metrics.lastRestart = Date.now();
+            
+            await this.cleanupBeforeExit();
+            
+            await new Promise(resolve => setTimeout(resolve, 5000));
+            
+            this.startKeepAlive();
+            await this.whatsappClient.initialize();
+            
+            this.isReconnecting = false;
+            console.log('Servicios reiniciados exitosamente');
+        } catch (error) {
+            console.error('Error reiniciando servicios:', error);
+            this.logError('service_restart', error);
+            process.exit(1);
         }
     }
 
     async cleanupBeforeExit() {
         try {
-            // Limpiar intervalos
             if (this.keepAliveInterval) clearInterval(this.keepAliveInterval);
+            if (this.deploymentTimeout) clearTimeout(this.deploymentTimeout);
             
-            // Cerrar cliente de WhatsApp
             await this.whatsappClient.destroy();
-            
-            // Limpiar sesión
             await this.clearSession();
             
             console.log('Limpieza completada antes de salir');
         } catch (error) {
             console.error('Error en limpieza:', error);
-        }
-    }
-
-    async keepAliveWithRetry() {
-        try {
-            const response = await axios.get(this.PING_URL, {
-                timeout: 10000,  // Aumentado a 10 segundos
-                validateStatus: status => status >= 200 && status < 500,
-                headers: {
-                    'User-Agent': 'WhatsAppBot/1.0 HealthCheck'
-                }
-            });
-            
-            this.healthCheck.lastPing = Date.now();
-            console.log(`Ping exitoso: ${response.status}`);
-            
-            // Resetear intentos si el ping es exitoso
-            this.reconnectAttempts = 0;
-        } catch (error) {
-            console.error('Error en ping:', {
-                message: error.message,
-                url: this.PING_URL,
-                code: error.code,
-                response: error.response?.status
-            });
-            
-            const backoffDelay = Math.min(
-                15000 * Math.pow(1.5, this.reconnectAttempts), 
-                180000
-            );
-            
-            console.log(`Reintentando ping en ${backoffDelay/1000}s...`);
-            setTimeout(() => this.keepAliveWithRetry(), backoffDelay);
         }
     }
 
@@ -231,54 +356,19 @@ class StabilityManager {
         console.log('Sistema keepAlive iniciado');
     }
 
-    updateHealth() {
-        const now = Date.now();
-        
-        // Verificar salud del sistema
-        this.healthCheck.isHealthy = 
-            (now - this.healthCheck.lastPing) < this.MAX_SILENCE && 
-            (now - this.healthCheck.lastMessage) < this.MAX_SILENCE;
-
-        // Actualizar uptime
-        this.healthCheck.metrics.uptime = now - this.healthCheck.metrics.uptime;
-
-        if (!this.healthCheck.isHealthy && !this.isReconnecting) {
-            console.warn('Sistema posiblemente inactivo, reiniciando servicios...');
-            this.restartServices();
-        }
-    }
-
-    async restartServices() {
-        try {
-            this.healthCheck.metrics.lastRestart = Date.now();
-            
-            // Limpiar recursos existentes
-            await this.cleanupBeforeExit();
-            
-            // Reiniciar servicios
-            this.startKeepAlive();
-            await this.whatsappClient.initialize();
-            
-            console.log('Servicios reiniciados exitosamente');
-        } catch (error) {
-            console.error('Error reiniciando servicios:', error);
-            this.logError('service_restart', error);
-            
-            // Si falla el reinicio, forzar reinicio del proceso
-            process.exit(1);
-        }
-    }
-
     setupHealthEndpoint(app) {
         app.get('/health', (req, res) => {
             const health = {
                 status: this.healthCheck.isHealthy ? 'healthy' : 'unhealthy',
                 lastPing: new Date(this.healthCheck.lastPing).toISOString(),
                 lastMessage: new Date(this.healthCheck.lastMessage).toISOString(),
+                connectionState: this.healthCheck.connectionState,
+                deploymentState: this.healthCheck.deploymentState,
                 metrics: {
                     ...this.healthCheck.metrics,
                     uptime: `${Math.floor(this.healthCheck.metrics.uptime / 1000 / 60)} minutes`,
                     reconnectAttempts: this.reconnectAttempts,
+                    pingFailures: this.pingFailures,
                     memory: process.memoryUsage()
                 }
             };
@@ -286,7 +376,6 @@ class StabilityManager {
             res.json(health);
         });
 
-        // Endpoint para forzar GC
         app.post('/gc', (req, res) => {
             try {
                 if (global.gc) {
@@ -321,8 +410,7 @@ class StabilityManager {
         }
 
         setInterval(() => this.updateHealth(), this.HEALTH_CHECK_INTERVAL);
-        
-        // Manejar señales de terminación
+        // Manejo de señales de terminación
         process.on('SIGTERM', async () => {
             console.log('Recibida señal SIGTERM');
             await this.cleanupBeforeExit();
@@ -333,6 +421,23 @@ class StabilityManager {
             console.log('Recibida señal SIGINT');
             await this.cleanupBeforeExit();
             process.exit(0);
+        });
+
+        // Manejo de errores no capturados
+        process.on('unhandledRejection', (error) => {
+            console.error('Promesa rechazada no manejada:', error);
+            this.logError('unhandled_rejection', error);
+            if (!this.isReconnecting && !this.isDeployment) {
+                this.restartServices();
+            }
+        });
+
+        process.on('uncaughtException', (error) => {
+            console.error('Excepción no capturada:', error);
+            this.logError('uncaught_exception', error);
+            if (!this.isReconnecting && !this.isDeployment) {
+                this.restartServices();
+            }
         });
     }
 }
