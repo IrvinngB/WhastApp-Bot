@@ -1,40 +1,107 @@
+-   LAPTOPS
 
-GAMA BAJA
-
+GAMA BAJA (250$ - 400$)
 1. Acer Aspire 5: AMD Ryzen 3 5300U, 4 GB RAM, 128 GB SSD, Pantalla 15.6" Full HD, Windows 11 Home. 400$
 2. Lenovo IdeaPad 3: Intel Core i3-1115G4, 4 GB RAM, 256 GB SSD, Pantalla 14" HD, Windows 11 Home. 350$
 3. Dell Inspiron 15 3000: Intel Pentium Silver N5030, 4 GB RAM, 128 GB SSD, Pantalla 15.6" HD, Windows 11 Home. 350$
 4. Acer Aspire 1: Intel Celeron N4500, 4 GB RAM, 128 GB eMMC, Pantalla 14" HD (1366 x 768), Windows 10 Home en modo S. 300$
 5. HP Stream 14: Intel Celeron N4020, 4 GB RAM, 64 GB eMMC, Pantalla 14" HD (1366 x 768), Windows 11 Home en modo S. 280$
+6. ASUS VivoBook Go 15: AMD Ryzen 3 3250U, 4 GB RAM, 128 GB SSD, Pantalla 15.6" HD, Windows 11 Home. 375$
+7. HP Laptop 15: Intel Celeron N4500, 4 GB RAM, 128 GB SSD, Pantalla 15.6" HD, Windows 11 Home. 320$
+8. Lenovo IdeaPad 1: AMD A6-9220e, 4 GB RAM, 64 GB eMMC, Pantalla 14" HD, Windows 11 Home en modo S. 250$
 
-GAMA MEDIA
-
+GAMA MEDIA (600$ - 800$)
 1. HP Pavilion x360: Intel Core i5-1135G7, 8 GB RAM, 512 GB SSD, Pantalla 14" Full HD táctil, Windows 11 Home. 650$
 2. Acer Aspire 7: AMD Ryzen 5 3550H, 8 GB RAM, 512 GB SSD, Pantalla 15.6" Full HD, Windows 10 Home. 700$
 3. Lenovo Yoga 7i: Intel Core i5-1235U, 8 GB RAM, 256 GB SSD, Pantalla 14" Full HD táctil, Windows 11 Home. 750$
 4. Dell Inspiron 14 7000: Intel Core i5-11300H, 8 GB RAM, 512 GB SSD, Pantalla 14" Full HD, Windows 11 Home. 750$
-5. Asus VivoBook 15: Intel Core i5-1135G7, 8 GB RAM, 512 GB SSD, Pantalla 15.6" Full HD (1920 x 1080), Windows 11 Home. 700$
+5. Asus VivoBook 15: Intel Core i5-1135G7, 8 GB RAM, 512 GB SSD, Pantalla 15.6" Full HD, Windows 11 Home. 700$
+6. MSI Modern 14: Intel Core i5-1155G7, 8 GB RAM, 512 GB SSD, Pantalla 14" Full HD, Windows 11 Home. 680$
+7. ASUS ZenBook 14: AMD Ryzen 5 5500U, 8 GB RAM, 256 GB SSD, Pantalla 14" Full HD, Windows 11 Home. 720$
+8. Acer Swift 3: Intel Core i5-1240P, 8 GB RAM, 512 GB SSD, Pantalla 14" Full HD, Windows 11 Home. 780$
 
-GAMA ALTA
-
+GAMA ALTA (1200$ - 2000$)
 1. Apple MacBook Air (M2, 2023): Apple M2, 8 GB RAM, 256 GB SSD, Pantalla 13.6" Liquid Retina, macOS. 1200$
 2. Dell XPS 15: Intel Core i7-13700H, 16 GB RAM, 1 TB SSD, Pantalla 15.6" 4K UHD+, Windows 11 Pro. 2000$
-3. Microsoft Surface Laptop 5: Intel Core i7-1255U, 16 GB RAM, 512 GB SSD, Pantalla 15" PixelSense (2496 x 1664), Windows 11 Home. 1800$
-4. HP Spectre x360 14: Intel Core i7-1165G7, 16 GB RAM, 512 GB SSD, Pantalla 13.5" Full HD (1920 x 1080) táctil, Windows 11 Home. 1400$
-5. Huawei MateBook X Pro: Intel Core i7-1165G7, 16 GB RAM, 512 GB SSD, Pantalla 13.9" 3K (3000 x 2000) táctil, Windows 11 Home. 1500$
+3. Microsoft Surface Laptop 5: Intel Core i7-1255U, 16 GB RAM, 512 GB SSD, Pantalla 15" PixelSense, Windows 11 Home. 1800$
+4. HP Spectre x360 14: Intel Core i7-1165G7, 16 GB RAM, 512 GB SSD, Pantalla 13.5" Full HD táctil, Windows 11 Home. 1400$
+5. Huawei MateBook X Pro: Intel Core i7-1165G7, 16 GB RAM, 512 GB SSD, Pantalla 13.9" 3K táctil, Windows 11 Home. 1500$
+6. Razer Book 13: Intel Core i7-1165G7, 16 GB RAM, 512 GB SSD, Pantalla 13.4" 4K táctil, Windows 11 Home. 1600$
+7. ASUS ZenBook Pro Duo: Intel Core i7-12700H, 16 GB RAM, 1 TB SSD, Pantalla 15.6" 4K OLED, Windows 11 Pro. 1900$
+8. LG Gram 17: Intel Core i7-1260P, 16 GB RAM, 1 TB SSD, Pantalla 17" WQXGA, Windows 11 Home. 1700$
 
-GAMER
+GAMER (750$ - 1500$)
+1. Acer Nitro 5: Intel Core i5-11400H, 8 GB RAM, 512 GB SSD, RTX 3050, 144Hz. 1000$
+2. HP Omen 16: AMD Ryzen 7 5800H, 16 GB RAM, 512 GB SSD, RTX 3060, 165Hz. 1500$
+3. Lenovo Legion 5: AMD Ryzen 5 5600H, 12 GB RAM, 512 GB SSD, GTX 1650, 120Hz. 850$
+4. HP Pavilion Gaming 15: Intel Core i5-11300H, 8 GB RAM, 512 GB SSD, GTX 1650, 60Hz. 750$
+5. MSI GF65 Thin: Intel Core i7-10750H, 16 GB RAM, 512 GB SSD, RTX 3060, 120Hz. 1200$
+6. ASUS TUF Gaming A15: AMD Ryzen 7 4800H, 16 GB RAM, 512 GB SSD, RTX 3050 Ti, 144Hz. 1100$
+7. Dell G15 Gaming: AMD Ryzen 5 5600H, 8 GB RAM, 512 GB SSD, RTX 3050, 120Hz. 900$
+8. MSI Katana GF76: Intel Core i7-11800H, 16 GB RAM, 512 GB SSD, RTX 3050 Ti, 144Hz. 1300$
 
-1. Acer Nitro 5: Intel Core i5-11400H, 8 GB RAM, 512 GB SSD, Pantalla 15.6" Full HD (1920 x 1080) 144Hz, NVIDIA GeForce GTX 1650, Windows 11 Home. 1000$
-2. HP Omen 16: AMD Ryzen 7 5800H, 16 GB RAM, 512 GB SSD, Pantalla 16.1" QHD (2560 x 1600), 165 Hz, NVIDIA GeForce RTX 3060, Windows 11 Home. 1500$
-3. Lenovo Legion 5: AMD Ryzen 5 5600H, 12 GB RAM, 512 GB SSD, Pantalla 15.6" Full HD (1920 x 1080), 120 Hz, NVIDIA GeForce GTX 1650, Windows 11 Home. 850$
-4. HP Pavilion Gaming 15: Intel Core i5-11300H, 8 GB RAM, 512 GB SSD, Pantalla 15.6" Full HD (1920 x 1080), 60 Hz, NVIDIA GeForce GTX 1650, Windows 11 Home. 750$
-5. MSI GF65 Thin: Intel Core i7-10750H, 16 GB RAM, 512 GB SSD, Pantalla 15.6" Full HD (1920 x 1080) 120Hz, NVIDIA GeForce RTX 3060, Windows 11 Home. 1200$
+EMPRESARIAL (700$ - 1000$)
+1. Lenovo ThinkPad T14: Intel Core i5-10210U, 8 GB RAM, 256 GB SSD, Windows 10 Pro. 750$
+2. Lenovo ThinkPad X1 Carbon: Intel Core i5-10210U, 8 GB RAM, 256 GB SSD, Windows 10 Pro. 950$
+3. HP EliteBook 850 G6: Intel Core i5-8365U, 8 GB RAM, 256 GB SSD, Windows 10 Pro. 900$
+4. Acer Swift 3: Intel Core i5-1135G7, 8 GB RAM, 512 GB SSD, Windows 11 Home. 700$
+5. Lenovo ThinkPad L14 Yoga: Intel Core i5-1135G7, 8 GB RAM, 256 GB SSD, Windows 11 Pro. 1000$
+6. Dell Latitude 5420: Intel Core i5-1145G7, 8 GB RAM, 256 GB SSD, Windows 10 Pro. 850$
+7. HP ProBook 450 G8: Intel Core i5-1135G7, 8 GB RAM, 512 GB SSD, Windows 10 Pro. 800$
+8. ASUS ExpertBook B5: Intel Core i5-1135G7, 8 GB RAM, 512 GB SSD, Windows 11 Pro. 880$
 
-EMPRESARIAL
+-   COMPONENTES
 
-1. Lenovo ThinkPad T14: Intel Core i5-10210U, 8 GB RAM, 256 GB SSD, Pantalla 14" Full HD (1920 x 1080), Windows 10 Pro. 750$
-2. Lenovo ThinkPad X1 Carbon (8ª Gen): Intel Core i5-10210U, 8 GB RAM, 256 GB SSD, Pantalla 14" Full HD (1920 x 1080), Windows 10 Pro. 950$
-3. HP EliteBook 850 G6: Intel Core i5-8365U, 8 GB RAM, 256 GB SSD, Pantalla 15.6" Full HD (1920 x 1080), Windows 10 Pro. 900$
-4. Acer Swift 3: Intel Core i5-1135G7, 8 GB RAM, 512 GB SSD, Pantalla 14" Full HD (1920 x 1080), Windows 11 Home. 700$
-5. Lenovo ThinkPad L14 Yoga: Intel Core i5-1135G7, 8 GB RAM, 256 GB SSD, Pantalla 14" Full HD (1920 x 1080) táctil, Windows 11 Pro. 1000$
+MEMORIA RAM
+1. Crucial 8GB DDR4-3200 SODIMM: Compatible con laptops modernas, bajo voltaje. 35$
+2. Kingston HyperX Impact 16GB DDR4-3200: Alto rendimiento para gaming. 65$
+3. Samsung 8GB DDR4-2666 SODIMM: Fiabilidad y rendimiento equilibrado. 40$
+
+ALMACENAMIENTO
+1. Samsung 970 EVO Plus 500GB NVMe M.2: Alto rendimiento, 3500MB/s lectura. 80$
+2. Crucial MX500 1TB SATA SSD: Excelente relación calidad-precio. 100$
+3. Western Digital Blue 2TB HDD 2.5": Almacenamiento masivo económico. 65$
+
+BATERÍAS
+1. Batería HP Original 45Wh: Compatible con serie Pavilion. 89$
+2. Batería Lenovo ThinkPad 50Wh: Para modelos T14/T15. 95$
+3. Batería Dell 60Wh: Compatible con Latitude/Inspiron. 99$
+
+ACCESORIOS
+
+MOCHILAS Y FUNDAS
+1. Targus CitySmart 15.6" Professional Backpack: Resistente al agua. 45$
+2. Samsonite Classic Sleeve 14": Funda acolchada premium. 25$
+3. SwissGear Travel Gear 17" Laptop Backpack: Múltiples compartimentos. 55$
+
+PERIFÉRICOS
+1. Logitech MX Master 3: Mouse inalámbrico premium. 99$
+2. Microsoft Surface Keyboard: Teclado bluetooth slim. 79$
+3. LG 24" FHD Monitor: Panel IPS, 75Hz. 159$
+
+COOLING PADS
+1. Cooler Master NotePal X3: Ventilador LED azul, 2 puertos USB. 35$
+2. Thermaltake Massive 20 RGB: 200mm fan, control táctil. 45$
+3. KLIM Wind Laptop Cooling Pad: 4 ventiladores, diseño ligero. 25$
+
+ACCESORIOS DE CARGA
+1. Anker 65W GaN Charger: Cargador compacto USB-C. 45$
+2. AUKEY 100W Power Bank 20000mAh: Batería portátil de alta capacidad. 79$
+3. Belkin Surge Protector: 12 tomas, protección contra sobretensiones. 25$
+
+-   SERVICIOS
+
+GARANTÍAS EXTENDIDAS
+1. Plan Básico: 1 año adicional de cobertura. 49$
+2. Plan Premium: 2 años adicionales + cobertura por accidentes. 99$
+3. Plan Business: 3 años + soporte prioritario. 149$
+
+MANTENIMIENTO
+1. Limpieza Básica: Limpieza externa + teclado. 25$
+2. Mantenimiento Preventivo: Limpieza completa + pasta térmica. 45$
+3. Servicio Premium: Limpieza profunda + optimización software. 75$
+
+SOPORTE TÉCNICO
+1. Soporte Remoto: Asistencia técnica por TeamViewer. 15$/sesión
+2. Diagnóstico Presencial: Revisión y diagnóstico completo. 35$
+3. Configuración Empresarial: Setup completo para empresas. 99$/equipo

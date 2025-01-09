@@ -19,13 +19,47 @@ console.log('Uso de memoria inicial:', {
     heapUsed: `${Math.round(used.heapUsed / 1024 / 1024)}MB`
 });
 
-// Control de estado global
+// Control de estado global y rate limiting
 let isProcessingMessage = false;
 let messageQueue = [];
 const MAX_QUEUE_SIZE = 100;
 const MESSAGE_TIMEOUT = 30000; // 30 segundos
 
+// Sistema de rate limiting
+const MESSAGE_RATE_LIMIT = {
+    WINDOW_MS: 60000, // 1 minuto
+    MAX_MESSAGES: 10  // máximo 10 mensajes por minuto
+};
+
+const userMessageCounts = new Map();
+
 // Constantes y configuración
+const MEDIA_TYPES = {
+    IMAGE: 'image',
+    VIDEO: 'video',
+    AUDIO: 'audio',
+    DOCUMENT: 'document',
+    STICKER: 'sticker'
+};
+
+const SPAM_PATTERNS = [
+    'spam',
+    'publicidad',
+    'promo',
+    'gana dinero',
+    'investment',
+    'casino',
+    'lottery',
+    'premio',
+    'ganaste',
+    'bitcoin',
+    'crypto',
+    'prestamo',
+    'loan',
+    /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/, // Email pattern
+    /(?:https?:\/\/)?(?:[\w\-]+\.)+[a-zA-Z]{2,}(?:\/[^\s]*)?/, // URL pattern
+];
+
 const PANAMA_TIMEZONE = "America/Panama";
 const PORT = process.env.PORT || 3000;
 const PAUSE_DURATION = 60 * 60 * 1000;
@@ -35,6 +69,57 @@ const MAX_RETRIES = 3;
 const pausedUsers = new Map();
 const contextStore = new Map();
 const userRequestsHuman = new Map();
+const lastUserMessages = new Map(); // Para detectar mensajes repetidos
+
+// Sistema de mensajes mejorado
+const SYSTEM_MESSAGES = {
+    WELCOME: `¡Hola! 👋 Soy Abigail, el asistente virtual de ElectronicsJS. Estoy aquí para ayudarte con información sobre nuestros productos y servicios. 
+
+Si en cualquier momento deseas hablar con un representante humano, puedes escribir "agente" o "hablar con persona real".
+
+¿En qué puedo ayudarte hoy?`,
+    
+    HUMAN_REQUEST: `Entiendo que prefieres hablar con un representante humano. Voy a conectarte con uno de nuestros agentes.
+
+⏳ Por favor, ten en cuenta que puede haber un tiempo de espera. Mientras tanto, ¿hay algo específico en lo que pueda ayudarte?
+
+Para volver al asistente virtual en cualquier momento, escribe "volver al bot".`,
+    
+    STORE_CLOSED: `🕒 Nuestra tienda está cerrada en este momento.
+
+Horario de atención:
+- Lunes a Viernes: 9:00 AM - 8:00 PM
+- Sábados y Domingos: 10:00 AM - 6:00 PM
+(Hora de Panamá)
+
+¿En qué puedo ayudarte mientras tanto?`,
+
+    ERROR: `Lo siento, estamos experimentando dificultades técnicas. Por favor, intenta nuevamente en unos momentos.
+
+Si el problema persiste, puedes escribir "agente" para hablar con una persona real.`,
+
+    TIMEOUT: `Lo siento, tu mensaje está tomando más tiempo del esperado. Por favor, intenta nuevamente o escribe "agente" para hablar con una persona real.`,
+
+    MEDIA_RECEIVED: `¡Gracias por compartir este contenido! 📁
+
+Para brindarte una mejor atención, te conectaré con uno de nuestros representantes que podrá revisar tu archivo y ayudarte personalmente.
+
+⏳ Un agente se pondrá en contacto contigo pronto. Mientras tanto, ¿hay algo específico que quieras mencionar sobre el archivo compartido?`,
+
+    SPAM_WARNING: `Lo siento, pero he detectado contenido que podría ser spam o publicidad no solicitada. 
+
+Por favor, mantén las conversaciones relacionadas con nuestros productos y servicios. Si tienes alguna consulta legítima, estaré encantado de ayudarte. 🛡️`,
+
+    RATE_LIMIT: `⚠️ Has enviado demasiados mensajes en poco tiempo. 
+
+Por favor, espera un momento antes de enviar más mensajes. Esto nos ayuda a mantener una conversación más efectiva. 
+
+Si tienes una urgencia, escribe "agente" para hablar con una persona real.`,
+
+    REPEATED_MESSAGE: `Parece que estás enviando el mismo mensaje repetidamente. 
+
+¿Hay algo específico en lo que pueda ayudarte? Si necesitas hablar con un agente humano, solo escribe "agente".`
+};
 
 // Verificación de variables de entorno
 if (!process.env.GEMINI_API_KEY) {
@@ -84,37 +169,65 @@ try {
     process.exit(1);
 }
 
-// Sistema de mensajes mejorado
-const SYSTEM_MESSAGES = {
-    WELCOME: `¡Hola! 👋 Soy el asistente virtual de ElectronicsJS. Estoy aquí para ayudarte con información sobre nuestros productos y servicios. 
+// Sistema de rate limiting mejorado
+function checkRateLimit(userId) {
+    const now = Date.now();
+    const userCount = userMessageCounts.get(userId) || { count: 0, timestamp: now };
 
-Si en cualquier momento deseas hablar con un representante humano, puedes escribir "agente" o "hablar con persona real".
+    // Limpiar contadores antiguos
+    if (now - userCount.timestamp > MESSAGE_RATE_LIMIT.WINDOW_MS) {
+        userCount.count = 1;
+        userCount.timestamp = now;
+    } else {
+        userCount.count++;
+    }
 
-¿En qué puedo ayudarte hoy?`,
+    userMessageCounts.set(userId, userCount);
+    return userCount.count > MESSAGE_RATE_LIMIT.MAX_MESSAGES;
+}
+
+// Función para detectar mensajes repetidos
+function isRepeatedMessage(userId, message) {
+    const lastMessage = lastUserMessages.get(userId);
+    const currentMessage = message.toLowerCase().trim();
     
-    HUMAN_REQUEST: `Entiendo que prefieres hablar con un representante humano. Voy a conectarte con uno de nuestros agentes.
-
-⏳ Por favor, ten en cuenta que puede haber un tiempo de espera. Mientras tanto, ¿hay algo específico en lo que pueda ayudarte?
-
-Para volver al asistente virtual en cualquier momento, escribe "volver al bot".`,
+    if (lastMessage && lastMessage.text === currentMessage) {
+        lastMessage.count++;
+        if (lastMessage.count > 3) { // Más de 3 mensajes idénticos
+            return true;
+        }
+    } else {
+        lastUserMessages.set(userId, {
+            text: currentMessage,
+            count: 1,
+            timestamp: Date.now()
+        });
+    }
     
-    STORE_CLOSED: `🕒 Nuestra tienda está cerrada en este momento.
+    return false;
+}
 
-Horario de atención:
-- Lunes a Viernes: 9:00 AM - 8:00 PM
-- Sábados y Domingos: 10:00 AM - 6:00 PM
-(Hora de Panamá)
+// Función para detectar spam
+function isSpamMessage(message) {
+    const messageText = message.body.toLowerCase();
+    
+    // Verificar patrones de spam
+    const containsSpamPattern = SPAM_PATTERNS.some(pattern => {
+        if (pattern instanceof RegExp) {
+            return pattern.test(messageText);
+        }
+        return messageText.includes(pattern);
+    });
 
-¿En qué puedo ayudarte mientras tanto?`,
+    // Verificar características sospechosas
+    const hasMultipleUrls = (messageText.match(/https?:\/\//g) || []).length > 1;
+    const hasMultiplePhoneNumbers = (messageText.match(/\b\d{8,}\b/g) || []).length > 1;
+    const hasExcessivePunctuation = (messageText.match(/[!?]/g) || []).length > 5;
+    
+    return containsSpamPattern || hasMultipleUrls || hasMultiplePhoneNumbers || hasExcessivePunctuation;
+}
 
-    ERROR: `Lo siento, estamos experimentando dificultades técnicas. Por favor, intenta nuevamente en unos momentos.
-
-Si el problema persiste, puedes escribir "agente" para hablar con una persona real.`,
-
-    TIMEOUT: `Lo siento, tu mensaje está tomando más tiempo del esperado. Por favor, intenta nuevamente o escribe "agente" para hablar con una persona real.`
-};
-
-// Función mejorada para generar respuestas con retry y timeout
+// Función mejorada para generar respuestas
 async function generateResponse(userMessage, contactId, retryCount = 0) {
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
     
@@ -122,7 +235,7 @@ async function generateResponse(userMessage, contactId, retryCount = 0) {
         const userContext = contextStore.get(contactId) || '';
         
         const customPrompt = `
-        Eres un asistente virtual amigable y profesional de ElectronicsJS. Tu objetivo es proporcionar la mejor atención posible siguiendo estas pautas:
+        Eres un asistente virtual llamado Abigail amigable y profesional de ElectronicsJS. Tu objetivo es proporcionar la mejor atención posible siguiendo estas pautas:
 
         PERSONALIDAD:
         - Sé amable y empático, pero mantén un tono profesional
@@ -132,7 +245,7 @@ async function generateResponse(userMessage, contactId, retryCount = 0) {
 
         FUNCIONES PRINCIPALES:
         1. Información de Productos:
-           - Proporciona detalles precisos sobre laptops y productos
+           - Proporciona detalles precisos sobre laptops y productos (componentes)
            - Menciona especificaciones técnicas cuando sea relevante
            - Sugiere productos según las necesidades del cliente
 
@@ -157,7 +270,7 @@ async function generateResponse(userMessage, contactId, retryCount = 0) {
 
         CONTEXTO ACTUAL:
         - Historial del usuario: ${userContext}
-        - Productos disponibles: ${laptops}
+        - Productos disponibles (laptops y componentes): ${laptops}
 
         RESPONDE A: "${userMessage}"
         
@@ -196,6 +309,47 @@ async function generateResponse(userMessage, contactId, retryCount = 0) {
     }
 }
 
+// Función para manejar mensajes con medios
+async function handleMediaMessage(message) {
+    const mediaType = message.type;
+    let responseText = SYSTEM_MESSAGES.MEDIA_RECEIVED;
+
+    // Personalizar mensaje según el tipo de medio
+    switch (mediaType) {
+        case MEDIA_TYPES.IMAGE:
+            responseText = `${responseText}\n\n📸 He notado que has compartido una imagen.`;
+            break;
+        case MEDIA_TYPES.AUDIO:
+            responseText = `${responseText}\n\n🎵 He notado que has compartido un mensaje de voz.`;
+            break;
+        case MEDIA_TYPES.VIDEO:
+            responseText = `${responseText}\n\n🎥 He notado que has compartido un video.`;
+            break;
+        case MEDIA_TYPES.DOCUMENT:
+            responseText = `${responseText}\n\n📄 He notado que has compartido un documento.`;
+            break;
+    }
+
+    try {
+        await message.reply(responseText);
+        pausedUsers.set(message.from, true);
+        userRequestsHuman.set(message.from, true);
+
+        // Programar la limpieza después del período de pausa
+        setTimeout(() => {
+            if (pausedUsers.get(message.from)) {
+                pausedUsers.delete(message.from);
+                userRequestsHuman.delete(message.from);
+                whatsappClient.sendMessage(message.from, 'El asistente virtual está nuevamente disponible. ¿En qué puedo ayudarte?');
+            }
+        }, PAUSE_DURATION);
+
+    } catch (error) {
+        console.error('Error handling media message:', error);
+        await message.reply(SYSTEM_MESSAGES.ERROR);
+    }
+}
+
 // Función mejorada para verificar horario
 function isStoreOpen() {
     const panamaTime = moment().tz(PANAMA_TIMEZONE);
@@ -213,42 +367,92 @@ function isStoreOpen() {
     return hour >= start && hour < end;
 }
 
-// Configurar el cliente de WhatsApp con opciones optimizadas
-const whatsappClient = new Client({
-    puppeteer: {
-        args: [
-            '--no-sandbox',
-            '--disable-setuid-sandbox',
-            '--disable-dev-shm-usage',
-            '--disable-accelerated-2d-canvas',
-            '--no-first-run',
-            '--no-zygote',
-            '--single-process',
-            '--disable-gpu',
-            '--disable-extensions',
-            '--disable-software-rasterizer',
-            '--disable-features=site-per-process',
-            '--js-flags="--max-old-space-size=512"'
-        ],
-        headless: "new",
-        timeout: 0
-    },
-    clientId: 'electronics-js-bot',
-    restartOnAuthFail: true
-});
+// Funciones para verificar mensajes
+function isRequestingHuman(message) {
+    const humanKeywords = ['agente', 'persona real', 'humano', 'representante', 'asesor', 'hablar con alguien'];
+    return humanKeywords.some(keyword => message.toLowerCase().includes(keyword));
+}
 
-// Configurar Express y Socket.IO con manejo de errores
-const app = express();
-const server = http.createServer(app);
-const io = socketIo(server, {
-    pingTimeout: 60000,
-    pingInterval: 25000
-});
+function isReturningToBot(message) {
+    const botKeywords = ['volver al bot', 'bot', 'asistente virtual', 'chatbot'];
+    return botKeywords.some(keyword => message.toLowerCase().includes(keyword));
+}
 
-// Inicializar StabilityManager
-const stabilityManager = new StabilityManager(whatsappClient);
+// Manejador de mensajes principal mejorado
+async function handleMessage(message) {
+    stabilityManager.updateLastMessage();
+    
+    const contactId = message.from;
+    const messageText = message.body.toLowerCase();
 
-// Sistema de cola de mensajes
+    // Verificar rate limiting
+    if (checkRateLimit(contactId)) {
+        await message.reply(SYSTEM_MESSAGES.RATE_LIMIT);
+        return;
+    }
+
+    // Verificar mensajes repetidos
+    if (isRepeatedMessage(contactId, messageText)) {
+        await message.reply(SYSTEM_MESSAGES.REPEATED_MESSAGE);
+        return;
+    }
+
+    // Verificar si el usuario está solicitando atención humana
+    if (isRequestingHuman(messageText)) {
+        await message.reply(SYSTEM_MESSAGES.HUMAN_REQUEST);
+        pausedUsers.set(contactId, true);
+        userRequestsHuman.set(contactId, true);
+        
+        setTimeout(() => {
+            if (pausedUsers.get(contactId)) {
+                pausedUsers.delete(contactId);
+                userRequestsHuman.delete(contactId);
+                whatsappClient.sendMessage(contactId, 'El asistente virtual está nuevamente disponible. ¿En qué puedo ayudarte?');
+            }
+        }, PAUSE_DURATION);
+        
+        return;
+    }
+
+    // Verificar si el usuario quiere volver al bot
+    if (isReturningToBot(messageText) && userRequestsHuman.get(contactId)) {
+        pausedUsers.delete(contactId);
+        userRequestsHuman.delete(contactId);
+        await message.reply('¡Bienvenido de vuelta! ¿En qué puedo ayudarte?');
+        return;
+    }
+
+    if (pausedUsers.get(contactId)) {
+        return;
+    }
+
+    // Verificar si el mensaje contiene medios
+    if (message.hasMedia) {
+        await handleMediaMessage(message);
+        return;
+    }
+
+    // Verificar si el mensaje es spam
+    if (isSpamMessage(message)) {
+        await message.reply(SYSTEM_MESSAGES.SPAM_WARNING);
+        return;
+    }
+
+    try {
+        const responseText = messageText === 'hola' 
+            ? SYSTEM_MESSAGES.WELCOME
+            : isStoreOpen()
+                ? await generateResponse(message.body, contactId)
+                : SYSTEM_MESSAGES.STORE_CLOSED;
+
+        await message.reply(responseText);
+    } catch (error) {
+        console.error('Error procesando mensaje:', error);
+        await message.reply(SYSTEM_MESSAGES.ERROR);
+    }
+}
+
+// Sistema de cola de mensajes mejorado
 async function processMessageQueue() {
     if (isProcessingMessage || messageQueue.length === 0) return;
 
@@ -280,6 +484,30 @@ function queueMessage(message) {
     });
 }
 
+// Configurar el cliente de WhatsApp con opciones optimizadas
+const whatsappClient = new Client({
+    puppeteer: {
+        args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-accelerated-2d-canvas',
+            '--no-first-run',
+            '--no-zygote',
+            '--single-process',
+            '--disable-gpu',
+            '--disable-extensions',
+            '--disable-software-rasterizer',
+            '--disable-features=site-per-process',
+            '--js-flags="--max-old-space-size=512"'
+        ],
+        headless: "new",
+        timeout: 0
+    },
+    clientId: 'electronics-js-bot',
+    restartOnAuthFail: true
+});
+
 // Manejadores de eventos de WhatsApp mejorados
 whatsappClient.on('qr', (qr) => {
     qrcode.toDataURL(qr)
@@ -297,79 +525,6 @@ whatsappClient.on('loading_screen', (percent, message) => {
     io.emit('loading', { percent, message });
 });
 
-// Funciones mejoradas para verificar mensajes
-function isRequestingHuman(message) {
-    const humanKeywords = ['agente', 'persona real', 'humano', 'representante', 'asesor', 'hablar con alguien'];
-    return humanKeywords.some(keyword => message.toLowerCase().includes(keyword));
-}
-
-function isReturningToBot(message) {
-    const botKeywords = ['volver al bot', 'bot', 'asistente virtual', 'chatbot'];
-    return botKeywords.some(keyword => message.toLowerCase().includes(keyword));
-}
-
-// Manejador de mensajes principal mejorado
-async function handleMessage(message) {
-    stabilityManager.updateLastMessage();
-    
-    const contactId = message.from;
-    const messageText = message.body.toLowerCase();
-
-    // Verificar si el usuario está solicitando atención humana
-    if (isRequestingHuman(messageText)) {
-        await message.reply(SYSTEM_MESSAGES.HUMAN_REQUEST);
-        pausedUsers.set(contactId, true);
-        userRequestsHuman.set(contactId, true);
-        
-        setTimeout(() => {
-            if (pausedUsers.get(contactId)) {
-                pausedUsers.delete(contactId);
-                userRequestsHuman.delete(contactId);
-                whatsappClient.sendMessage(contactId, 'El asistente virtual está nuevamente disponible. ¿En qué puedo ayudarte?');
-            }
-        }, PAUSE_DURATION);
-        
-        return;
-    }
-
-    // Verificar si el usuario quiere volver al bot
-    if (isReturningToBot(messageText) && userRequestsHuman.get(contactId)) {
-        pausedUsers.delete(contactId);
-        userRequestsHuman.delete(contactId);
-        await message.reply('¡Bienvenido de vuelta! ¿En qué puedo ayudarte?');
-        return;
-    }
-
-    if (pausedUsers.get(contactId)) {
-        return;
-    }
-
-    if (message.hasMedia) {
-        if (message.type === 'audio') {
-            await message.reply(SYSTEM_MESSAGES.HUMAN_REQUEST);
-            pausedUsers.set(contactId, true);
-        }
-        return;
-    }
-
-    if (['spam', 'publicidad', 'promo'].some(word => messageText.includes(word))) {
-        return;
-    }
-
-    try {
-        const responseText = messageText === 'hola' 
-            ? SYSTEM_MESSAGES.WELCOME
-            : isStoreOpen()
-                ? await generateResponse(message.body, contactId)
-                : SYSTEM_MESSAGES.STORE_CLOSED;
-
-        await message.reply(responseText);
-    } catch (error) {
-        console.error('Error procesando mensaje:', error);
-        await message.reply(SYSTEM_MESSAGES.ERROR);
-    }
-}
-
 // Evento de mensaje mejorado con cola
 whatsappClient.on('message', async (message) => {
     try {
@@ -379,7 +534,34 @@ whatsappClient.on('message', async (message) => {
     }
 });
 
-// Configuración de rutas Express mejorada
+// Limpieza periódica de datos
+setInterval(() => {
+    const now = Date.now();
+    
+    // Limpiar contadores de mensajes antiguos
+    for (const [userId, data] of userMessageCounts.entries()) {
+        if (now - data.timestamp > MESSAGE_RATE_LIMIT.WINDOW_MS * 2) {
+            userMessageCounts.delete(userId);
+        }
+    }
+    
+    // Limpiar mensajes repetidos antiguos
+    for (const [userId, data] of lastUserMessages.entries()) {
+        if (now - data.timestamp > MESSAGE_RATE_LIMIT.WINDOW_MS) {
+            lastUserMessages.delete(userId);
+        }
+    }
+}, MESSAGE_RATE_LIMIT.WINDOW_MS);
+
+// Configurar Express y Socket.IO
+const app = express();
+const server = http.createServer(app);
+const io = socketIo(server, {
+    pingTimeout: 60000,
+    pingInterval: 25000
+});
+
+// Configuración de rutas Express
 app.use(express.static(path.join(__dirname, 'web')));
 app.use(express.json());
 
@@ -402,4 +584,11 @@ process.on('unhandledRejection', (error) => {
 
 process.on('uncaughtException', (error) => {
     console.error('Excepción no capturada:', error);
+});
+
+// Limpieza al cerrar
+process.on('SIGINT', async () => {
+    console.log('Cerrando aplicación...');
+    await whatsappClient.destroy();
+    process.exit();
 });
