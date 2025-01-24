@@ -543,7 +543,7 @@ async function handleMessage(message) {
         console.error('Error procesando mensaje:', error);
         await message.reply(SYSTEM_MESSAGES.ERROR);
     }
-
+}
 // Sistema de cola de mensajes mejorado
 async function processMessageQueue() {
     if (isProcessingMessage || messageQueue.length === 0) return;
@@ -686,4 +686,4 @@ process.on('SIGINT', async () => {
     console.log('Cerrando aplicación...');
     await whatsappClient.destroy();
     process.exit();
-});}
+});
