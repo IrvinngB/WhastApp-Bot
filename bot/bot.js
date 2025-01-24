@@ -92,7 +92,7 @@ Horario de atención:
 - Sábados y Domingos: 10:00 AM - 6:00 PM
 (Hora de Panamá)
 
-¿En qué puedo ayudarte mientras tanto?`,
+Aunque la tienda está cerrada, puedo ayudarte con preguntas básicas. ¿En qué puedo ayudarte?`,
 
     ERROR: `Lo siento, estamos experimentando dificultades técnicas. Por favor, intenta nuevamente en unos momentos.
 
@@ -350,8 +350,36 @@ async function handleMediaMessage(message) {
     }
 }
 
+//respuesta fuera de horario 
+async function generateLimitedResponse(userMessage, contactId) {
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+    const limitedPrompt = `
+    La tienda está cerrada en este momento, pero estoy aquí para ayudarte con preguntas básicas. 
+    Por favor, ten en cuenta que algunas funciones están limitadas fuera del horario de atención.
+
+    Puedo ayudarte con:
+    - Información básica sobre productos
+    - Preguntas frecuentes
+    - Horarios de atención
+
+    Para consultas más complejas o asistencia personalizada, te recomiendo contactarnos durante nuestro horario de atención.
+
+    Pregunta del usuario: "${userMessage}"
+    `;
+
+    try {
+        const result = await model.generateContent(limitedPrompt);
+        return result.response.text();
+    } catch (error) {
+        console.error('Error generando respuesta limitada:', error);
+        return SYSTEM_MESSAGES.ERROR;
+    }
+}
+
+
 // Función mejorada para verificar horario
-function isStoreOpen() {
+function getStoreStatus() {
     const panamaTime = moment().tz(PANAMA_TIMEZONE);
     const day = panamaTime.day();
     const hour = panamaTime.hour();
@@ -364,7 +392,14 @@ function isStoreOpen() {
     const isWeekday = day >= 1 && day <= 5;
     const { start, end } = isWeekday ? schedule.weekday : schedule.weekend;
 
-    return hour >= start && hour < end;
+    const isOpen = hour >= start && hour < end;
+    const nextOpeningTime = isOpen ? null : 
+        panamaTime.clone().startOf('day').add(isWeekday ? start : (day === 6 ? 10 : 9), 'hours');
+
+    return {
+        isOpen,
+        nextOpeningTime
+    };
 }
 
 // Funciones para verificar mensajes
@@ -381,7 +416,7 @@ function isReturningToBot(message) {
 // Manejador de mensajes principal mejorado
 async function handleMessage(message) {
     stabilityManager.updateLastMessage();
-    
+
     const contactId = message.from;
     const messageText = message.body.toLowerCase();
 
@@ -402,7 +437,7 @@ async function handleMessage(message) {
         await message.reply(SYSTEM_MESSAGES.HUMAN_REQUEST);
         pausedUsers.set(contactId, true);
         userRequestsHuman.set(contactId, true);
-        
+
         setTimeout(() => {
             if (pausedUsers.get(contactId)) {
                 pausedUsers.delete(contactId);
@@ -410,7 +445,7 @@ async function handleMessage(message) {
                 whatsappClient.sendMessage(contactId, 'El asistente virtual está nuevamente disponible. ¿En qué puedo ayudarte?');
             }
         }, PAUSE_DURATION);
-        
+
         return;
     }
 
@@ -439,11 +474,17 @@ async function handleMessage(message) {
     }
 
     try {
-        const responseText = messageText === 'hola' 
-            ? SYSTEM_MESSAGES.WELCOME
-            : isStoreOpen()
-                ? await generateResponse(message.body, contactId)
-                : SYSTEM_MESSAGES.STORE_CLOSED;
+        const storeStatus = getStoreStatus();
+        let responseText;
+
+        if (messageText === 'hola') {
+            responseText = SYSTEM_MESSAGES.WELCOME;
+        } else if (storeStatus.isOpen) {
+            responseText = await generateResponse(message.body, contactId);
+        } else {
+            responseText = await generateLimitedResponse(message.body, contactId);
+            responseText += `\n\n🕒 Nuestra tienda está cerrada en este momento. El horario de atención es de Lunes a Viernes de 9:00 AM a 8:00 PM y Sábados y Domingos de 10:00 AM a 6:00 PM (Hora de Panamá).`;
+        }
 
         await message.reply(responseText);
     } catch (error) {
