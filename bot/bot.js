@@ -87,12 +87,19 @@ Para volver al asistente virtual en cualquier momento, escribe "volver al bot".`
     
     STORE_CLOSED: `🕒 Nuestra tienda está cerrada en este momento.
 
-Horario de atención:
-- Lunes a Viernes: 9:00 AM - 8:00 PM
-- Sábados y Domingos: 10:00 AM - 6:00 PM
-(Hora de Panamá)
+    Horario de atención:
+    - Lunes a Viernes: 12:00 PM - 8:00 PM
+    - Sábados y Domingos: 10:00 AM - 6:00 PM
+    (Hora de Panamá)
 
-Aunque la tienda está cerrada, puedo ayudarte con preguntas básicas. ¿En qué puedo ayudarte?`,
+    Aunque la tienda está cerrada, puedo ayudarte con:
+    - Información básica sobre productos
+    - Información sobre la empresa
+    - Preguntas frecuentes
+
+    Para consultas más complejas, como hacer reclamos o realizar compras, te recomiendo visitar nuestra página web: https://www.electronicsjs.com o contactarnos durante nuestro horario de atención.
+
+    ¿En qué puedo ayudarte?`,
 
     ERROR: `Lo siento, estamos experimentando dificultades técnicas. Por favor, intenta nuevamente en unos momentos.
 
@@ -310,42 +317,80 @@ async function generateResponse(userMessage, contactId, retryCount = 0) {
 }
 
 // Función para manejar mensajes con medios
-async function handleMediaMessage(message) {
-    const mediaType = message.type;
-    let responseText = SYSTEM_MESSAGES.MEDIA_RECEIVED;
+async function handleMessage(message) {
+    stabilityManager.updateLastMessage();
 
-    // Personalizar mensaje según el tipo de medio
-    switch (mediaType) {
-        case MEDIA_TYPES.IMAGE:
-            responseText = `${responseText}\n\n📸 He notado que has compartido una imagen.`;
-            break;
-        case MEDIA_TYPES.AUDIO:
-            responseText = `${responseText}\n\n🎵 He notado que has compartido un mensaje de voz.`;
-            break;
-        case MEDIA_TYPES.VIDEO:
-            responseText = `${responseText}\n\n🎥 He notado que has compartido un video.`;
-            break;
-        case MEDIA_TYPES.DOCUMENT:
-            responseText = `${responseText}\n\n📄 He notado que has compartido un documento.`;
-            break;
+    const contactId = message.from;
+    const messageText = message.body.toLowerCase();
+
+    // Verificar rate limiting
+    if (checkRateLimit(contactId)) {
+        await message.reply(SYSTEM_MESSAGES.RATE_LIMIT);
+        return;
     }
 
-    try {
-        await message.reply(responseText);
-        pausedUsers.set(message.from, true);
-        userRequestsHuman.set(message.from, true);
+    // Verificar mensajes repetidos
+    if (isRepeatedMessage(contactId, messageText)) {
+        await message.reply(SYSTEM_MESSAGES.REPEATED_MESSAGE);
+        return;
+    }
 
-        // Programar la limpieza después del período de pausa
+    // Verificar si el usuario está solicitando atención humana
+    if (isRequestingHuman(messageText)) {
+        await message.reply(SYSTEM_MESSAGES.HUMAN_REQUEST);
+        pausedUsers.set(contactId, true);
+        userRequestsHuman.set(contactId, true);
+
         setTimeout(() => {
-            if (pausedUsers.get(message.from)) {
-                pausedUsers.delete(message.from);
-                userRequestsHuman.delete(message.from);
-                whatsappClient.sendMessage(message.from, 'El asistente virtual está nuevamente disponible. ¿En qué puedo ayudarte?');
+            if (pausedUsers.get(contactId)) {
+                pausedUsers.delete(contactId);
+                userRequestsHuman.delete(contactId);
+                whatsappClient.sendMessage(contactId, 'El asistente virtual está nuevamente disponible. ¿En qué puedo ayudarte?');
             }
         }, PAUSE_DURATION);
 
+        return;
+    }
+
+    // Verificar si el usuario quiere volver al bot
+    if (isReturningToBot(messageText) && userRequestsHuman.get(contactId)) {
+        pausedUsers.delete(contactId);
+        userRequestsHuman.delete(contactId);
+        await message.reply('¡Bienvenido de vuelta! ¿En qué puedo ayudarte?');
+        return;
+    }
+
+    if (pausedUsers.get(contactId)) {
+        return;
+    }
+
+    // Verificar si el mensaje contiene medios
+    if (message.hasMedia) {
+        await handleMediaMessage(message);
+        return;
+    }
+
+    // Verificar si el mensaje es spam
+    if (isSpamMessage(message)) {
+        await message.reply(SYSTEM_MESSAGES.SPAM_WARNING);
+        return;
+    }
+
+    try {
+        const storeStatus = getStoreStatus();
+        let responseText;
+
+        if (messageText === 'hola') {
+            responseText = SYSTEM_MESSAGES.WELCOME;
+        } else if (storeStatus.isOpen) {
+            responseText = await generateResponse(message.body, contactId);
+        } else {
+            responseText = await generateLimitedResponse(message.body, contactId);
+        }
+
+        await message.reply(responseText);
     } catch (error) {
-        console.error('Error handling media message:', error);
+        console.error('Error procesando mensaje:', error);
         await message.reply(SYSTEM_MESSAGES.ERROR);
     }
 }
@@ -360,17 +405,19 @@ async function generateLimitedResponse(userMessage, contactId) {
 
     Puedo ayudarte con:
     - Información básica sobre productos
+    - Información sobre la empresa
     - Preguntas frecuentes
     - Horarios de atención
 
-    Para consultas más complejas o asistencia personalizada, te recomiendo contactarnos durante nuestro horario de atención.
+    Para consultas más complejas, como hacer reclamos o realizar compras, te recomiendo visitar nuestra página web: https://irvin-benitez.software/ o contactarnos durante nuestro horario de atención.
 
     Pregunta del usuario: "${userMessage}"
     `;
 
     try {
         const result = await model.generateContent(limitedPrompt);
-        return result.response.text();
+        const responseText = result.response.text();
+        return `${responseText}\n\n🕒 Nuestra tienda está cerrada en este momento. El horario de atención es de Lunes a Viernes de 12:00 PM a 8:00 PM y Sábados y Domingos de 10:00 AM a 6:00 PM (Hora de Panamá).\n\n🌐 Visita nuestra web: https://www.electronicsjs.com`;
     } catch (error) {
         console.error('Error generando respuesta limitada:', error);
         return SYSTEM_MESSAGES.ERROR;
