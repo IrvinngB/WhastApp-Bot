@@ -97,7 +97,7 @@ Para volver al asistente virtual en cualquier momento, escribe "volver al bot".`
     - Información sobre la empresa
     - Preguntas frecuentes
 
-    Para consultas más complejas, como hacer reclamos o realizar compras, te recomiendo visitar nuestra página web: https://www.electronicsjs.com o contactarnos durante nuestro horario de atención.
+    Para consultas más complejas, como hacer reclamos o realizar compras, te recomiendo visitar nuestra página web: https://irvin-benitez.software o contactarnos durante nuestro horario de atención.
 
     ¿En qué puedo ayudarte?`,
 
@@ -400,19 +400,24 @@ async function generateLimitedResponse(userMessage, contactId) {
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
     const limitedPrompt = `
-    La tienda está cerrada en este momento, pero estoy aquí para ayudarte con preguntas básicas. 
-    Por favor, ten en cuenta que algunas funciones están limitadas fuera del horario de atención.
+La tienda está cerrada en este momento, pero estoy aquí para ayudarte con preguntas básicas. 
+Por favor, ten en cuenta que algunas funciones están limitadas fuera del horario de atención.
 
-    Puedo ayudarte con:
-    - Información básica sobre productos
-    - Información sobre la empresa
-    - Preguntas frecuentes
-    - Horarios de atención
+Puedo ayudarte con:
+- Información básica sobre productos
+- Información sobre la empresa
+- Preguntas frecuentes
+- Horarios de atención
 
-    Para consultas más complejas, como hacer reclamos o realizar compras, te recomiendo visitar nuestra página web: https://irvin-benitez.software/ o contactarnos durante nuestro horario de atención.
+Aquí tienes información sobre algunos de nuestros productos disponibles:
+${laptops}
 
-    Pregunta del usuario: "${userMessage}"
-    `;
+Si necesitas más detalles sobre un producto en particular, por favor especifica el modelo o las características que estás buscando.
+
+Para consultas más complejas, como hacer reclamos o realizar compras, te recomiendo visitar nuestra página web: https://irvin-benitez.software/ o contactarnos durante nuestro horario de atención.
+
+Pregunta del usuario: "${userMessage}"
+`;
 
     try {
         const result = await model.generateContent(limitedPrompt);
@@ -523,22 +528,21 @@ async function handleMessage(message) {
     try {
         const storeStatus = getStoreStatus();
         let responseText;
-
+    
         if (messageText === 'hola') {
             responseText = SYSTEM_MESSAGES.WELCOME;
         } else if (storeStatus.isOpen) {
             responseText = await generateResponse(message.body, contactId);
         } else {
             responseText = await generateLimitedResponse(message.body, contactId);
-            responseText += `\n\n🕒 Nuestra tienda está cerrada en este momento. El horario de atención es de Lunes a Viernes de 9:00 AM a 8:00 PM y Sábados y Domingos de 10:00 AM a 6:00 PM (Hora de Panamá).`;
+            // No agregues el horario de atención aquí, ya está incluido en generateLimitedResponse
         }
-
+    
         await message.reply(responseText);
     } catch (error) {
         console.error('Error procesando mensaje:', error);
         await message.reply(SYSTEM_MESSAGES.ERROR);
     }
-}
 
 // Sistema de cola de mensajes mejorado
 async function processMessageQueue() {
@@ -682,4 +686,4 @@ process.on('SIGINT', async () => {
     console.log('Cerrando aplicación...');
     await whatsappClient.destroy();
     process.exit();
-});
+});}
