@@ -385,7 +385,7 @@ function getStoreStatus() {
     const hour = panamaTime.hour();
 
     const schedule = {
-        weekday: { start: 9, end: 20 },
+        weekday: { start: 12, end: 20 },
         weekend: { start: 10, end: 18 }
     };
 
