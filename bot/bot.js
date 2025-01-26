@@ -10,6 +10,7 @@ const fs = require('fs');
 const path = require('path');
 const moment = require('moment-timezone');
 const StabilityManager = require('./stability');
+const cron = require('node-cron'); // Importar node-cron para reinicios programados
 
 // Manejo de memoria optimizado
 let used = process.memoryUsage();
@@ -647,3 +648,28 @@ process.on('SIGINT', async () => {
     await whatsappClient.destroy();
     process.exit();
 });
+
+// Función para reiniciar la sesión de WhatsApp
+async function restartSession() {
+    console.log('Reiniciando sesión de WhatsApp...');
+    try {
+        await whatsappClient.destroy(); // Cerrar la sesión actual
+        await whatsappClient.initialize(); // Iniciar una nueva sesión
+        console.log('Sesión reiniciada exitosamente.');
+    } catch (error) {
+        console.error('Error al reiniciar la sesión:', error);
+    }
+}
+
+// Programar el reinicio diario a una hora específica
+function scheduleDailyRestart() {
+    // Ejemplo: Reiniciar todos los días a las 3:00 AM
+    cron.schedule('0 3 * * *', async () => {
+        console.log('Reinicio programado: Cerrando sesión...');
+        await restartSession();
+        console.log('Reinicio programado: Sesión reiniciada exitosamente.');
+    });
+}
+
+// Iniciar el sistema de reinicio programado
+scheduleDailyRestart();
