@@ -2,7 +2,7 @@ const axios = require('axios');
 const URL = require('url').URL;
 const fs = require('fs').promises;
 const path = require('path');
-const cron = require('node-cron'); // Importar node-cron para reinicios programados
+const cron = require('node-cron'); // Para reinicios programados
 
 class StabilityManager {
     constructor(whatsappClient) {
@@ -47,6 +47,48 @@ class StabilityManager {
         this.setupMemoryMonitoring();
         this.setupEventHandlers();
         this.scheduleDailyRestart(); // Programar reinicio diario
+    }
+
+    // Función para manejar el estado de despliegue
+    handleDeploymentState(status) {
+        if (status === 502) {
+            if (!this.isDeployment) {
+                console.log('Detectado posible despliegue en curso');
+                this.isDeployment = true;
+                this.healthCheck.deploymentState = 'in_progress';
+                this.healthCheck.metrics.lastDeploymentTime = Date.now();
+                this.healthCheck.metrics.deploymentAttempts++;
+
+                // Limpiar timeout anterior si existe
+                if (this.deploymentTimeout) {
+                    clearTimeout(this.deploymentTimeout);
+                }
+
+                // Establecer nuevo timeout para el despliegue
+                this.deploymentTimeout = setTimeout(() => {
+                    if (this.isDeployment) {
+                        console.log('Timeout de despliegue alcanzado, reiniciando servicios');
+                        this.isDeployment = false;
+                        this.healthCheck.deploymentState = 'failed';
+                        this.restartServices();
+                    }
+                }, this.DEPLOYMENT_TIMEOUT);
+            }
+            return true;
+        }
+
+        if (this.isDeployment && status === 200) {
+            console.log('Despliegue completado exitosamente');
+            this.isDeployment = false;
+            this.healthCheck.deploymentState = 'stable';
+            if (this.deploymentTimeout) {
+                clearTimeout(this.deploymentTimeout);
+                this.deploymentTimeout = null;
+            }
+            return true;
+        }
+
+        return false;
     }
 
     // Programar el reinicio diario a una hora específica
@@ -139,6 +181,8 @@ class StabilityManager {
                     'User-Agent': 'WhatsAppBot/1.0 HealthCheck'
                 }
             });
+
+            console.log('Respuesta del ping:', response.status);
 
             const isDeploymentRelated = this.handleDeploymentState(response.status);
 
