@@ -238,10 +238,10 @@ function isSpamMessage(message) {
 // Función mejorada para generar respuestas
 async function generateResponse(userMessage, contactId, retryCount = 0) {
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-    
+
     try {
         const userContext = contextStore.get(contactId) || '';
-        
+
         const customPrompt = `
         Eres un asistente virtual llamado Electra amigable y profesional de ElectronicsJS. Tu objetivo es proporcionar la mejor atención posible siguiendo estas pautas:
 
@@ -281,7 +281,7 @@ async function generateResponse(userMessage, contactId, retryCount = 0) {
         - Productos disponibles (laptops y componentes): ${laptops}
 
         RESPONDE A: "${userMessage}"
-        
+
         FORMATO DE RESPUESTA:
         - Mantén las respuestas concisas (máximo 4-5 líneas)
         - Usa viñetas para listas largas
@@ -289,15 +289,19 @@ async function generateResponse(userMessage, contactId, retryCount = 0) {
 
         const result = await Promise.race([
             model.generateContent(customPrompt),
-            new Promise((_, reject) => 
+            new Promise((_, reject) =>
                 setTimeout(() => reject(new Error('TIMEOUT')), MESSAGE_TIMEOUT)
             )
         ]);
 
         let text = result.response.text();
 
-        // Verificar si la respuesta incluye una recomendación de laptop
-        if (text.toLowerCase().includes('laptop') || text.toLowerCase().includes('recomendación')) {
+        // Verificar si el cliente ha expresado interés en comprar o cotizar
+        const purchaseKeywords = ['comprar', 'cotizar', 'llevar', 'adquirir', 'quiero comprar', 'precio', 'costo'];
+        const isPurchaseIntent = purchaseKeywords.some(keyword => userMessage.toLowerCase().includes(keyword));
+
+        // Solo agregar el mensaje de compra si el cliente ha expresado interés en comprar
+        if (isPurchaseIntent) {
             text += `\n\n¿Te gustaría comprar esta laptop? Aquí tienes las opciones disponibles:
             - 🗣️ Hablar con un agente real: Escribe "agente" para conectarte con un representante.
             - 🌐 Comprar en línea: Visita nuestra página web: https://irvin-benitez.software
@@ -311,7 +315,7 @@ async function generateResponse(userMessage, contactId, retryCount = 0) {
         return text;
     } catch (error) {
         console.error('Error generando la respuesta:', error);
-        
+
         if (error.message === 'TIMEOUT' && retryCount < MAX_RETRIES) {
             console.log(`Reintentando generación de respuesta (${retryCount + 1}/${MAX_RETRIES})...`);
             return generateResponse(userMessage, contactId, retryCount + 1);
