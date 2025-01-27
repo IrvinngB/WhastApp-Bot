@@ -24,7 +24,7 @@ console.log('Uso de memoria inicial:', {
 let isProcessingMessage = false;
 let messageQueue = [];
 const MAX_QUEUE_SIZE = 100;
-const MESSAGE_TIMEOUT = 30000; // 30 segundos
+const MESSAGE_TIMEOUT = 60000; // 60 segundos
 
 // Sistema de rate limiting
 const MESSAGE_RATE_LIMIT = {
@@ -294,7 +294,15 @@ async function generateResponse(userMessage, contactId, retryCount = 0) {
             )
         ]);
 
-        const text = result.response.text();
+        let text = result.response.text();
+
+        // Verificar si la respuesta incluye una recomendación de laptop
+        if (text.toLowerCase().includes('laptop') || text.toLowerCase().includes('recomendación')) {
+            text += `\n\n¿Te gustaría comprar esta laptop? Aquí tienes las opciones disponibles:
+            - 🗣️ Hablar con un agente real: Escribe "agente" para conectarte con un representante.
+            - 🌐 Comprar en línea: Visita nuestra página web: https://irvin-benitez.software
+            - 🏬 Visitar la tienda: Estamos ubicados en La chorrera. ¡Te esperamos!`;
+        }
 
         // Actualizar contexto con límite de memoria
         const newContext = `${userContext.slice(-1000)}\nUsuario: ${userMessage}\nBot: ${text}`.trim();
@@ -304,11 +312,7 @@ async function generateResponse(userMessage, contactId, retryCount = 0) {
     } catch (error) {
         console.error('Error generando la respuesta:', error);
         
-        if (error.message === 'TIMEOUT') {
-            return SYSTEM_MESSAGES.TIMEOUT;
-        }
-
-        if (retryCount < MAX_RETRIES) {
+        if (error.message === 'TIMEOUT' && retryCount < MAX_RETRIES) {
             console.log(`Reintentando generación de respuesta (${retryCount + 1}/${MAX_RETRIES})...`);
             return generateResponse(userMessage, contactId, retryCount + 1);
         }
