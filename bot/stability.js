@@ -92,12 +92,19 @@ class StabilityManager {
     }
 
     // Programar el reinicio diario a una hora específica
+  
     scheduleDailyRestart() {
         // Ejemplo: Reiniciar todos los días a las 3:00 AM
         cron.schedule('0 3 * * *', async () => {
             console.log('Reinicio programado: Cerrando sesión...');
-            await this.restartServices();
-            console.log('Reinicio programado: Sesión reiniciada exitosamente.');
+            try {
+                await this.restartServices();
+                console.log('Reinicio programado: Sesión reiniciada exitosamente.');
+            } catch (error) {
+                console.error('Error durante el reinicio programado:', error);
+                // Intentar reconectar después de un breve retraso
+                setTimeout(() => this.restartServices(), 10000);
+            }
         });
     }
 

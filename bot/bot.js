@@ -89,7 +89,7 @@ Para volver al asistente virtual en cualquier momento, escribe "volver al bot".`
     STORE_CLOSED: `🕒 Nuestra tienda está cerrada en este momento.
 
     Horario de atención:
-    - Lunes a Viernes: 6:00 PM - 10:00 PM
+    - Lunes a Viernes: 6:00 AM - 10:00 PM
     - Sábados y Domingos: 7:00 AM - 8:00 PM
     (Hora de Panamá)
 
@@ -367,6 +367,7 @@ async function generateLimitedResponse(userMessage, contactId) {
     Por favor, ten en cuenta que algunas funciones están limitadas fuera del horario de atención.
 
     Puedo ayudarte con:
+    -Horario de la tienda
     - Información básica sobre productos
     - Información sobre la empresa
     - Preguntas frecuentes
@@ -383,7 +384,7 @@ async function generateLimitedResponse(userMessage, contactId) {
     try {
         const result = await model.generateContent(limitedPrompt);
         const responseText = result.response.text();
-        return `${responseText}\n\n🕒 Nuestra tienda está cerrada en este momento. El horario de atención es de Lunes a Viernes de 6:00 PM a 10:00 PM y Sábados y Domingos de 7:00 AM a 8:00 PM (Hora de Panamá).\n\n🌐 Visita nuestra web: https://irvin-benitez.software`;
+        return `${responseText}\n\n🕒 Nuestra tienda está cerrada en este momento. El horario de atención es de Lunes a Viernes de 6:00 AM a 10:00 PM y Sábados y Domingos de 7:00 AM a 8:00 PM (Hora de Panamá).\n\n🌐 Visita nuestra web: https://irvin-benitez.software`;
     } catch (error) {
         console.error('Error generando respuesta limitada:', error);
         return SYSTEM_MESSAGES.ERROR;
@@ -648,28 +649,3 @@ process.on('SIGINT', async () => {
     await whatsappClient.destroy();
     process.exit();
 });
-
-// Función para reiniciar la sesión de WhatsApp
-async function restartSession() {
-    console.log('Reiniciando sesión de WhatsApp...');
-    try {
-        await whatsappClient.destroy(); // Cerrar la sesión actual
-        await whatsappClient.initialize(); // Iniciar una nueva sesión
-        console.log('Sesión reiniciada exitosamente.');
-    } catch (error) {
-        console.error('Error al reiniciar la sesión:', error);
-    }
-}
-
-// Programar el reinicio diario a una hora específica
-function scheduleDailyRestart() {
-    // Ejemplo: Reiniciar todos los días a las 3:00 AM
-    cron.schedule('0 3 * * *', async () => {
-        console.log('Reinicio programado: Cerrando sesión...');
-        await restartSession();
-        console.log('Reinicio programado: Sesión reiniciada exitosamente.');
-    });
-}
-
-// Iniciar el sistema de reinicio programado
-scheduleDailyRestart();
