@@ -92,7 +92,6 @@ class StabilityManager {
     }
 
     // Programar el reinicio diario a una hora específica
-  
     scheduleDailyRestart() {
         // Ejemplo: Reiniciar todos los días a las 3:00 AM
         cron.schedule('0 3 * * *', async () => {
@@ -167,6 +166,7 @@ class StabilityManager {
             this.pingFailures = 0;
             this.initialized = true;
             this.healthCheck.isHealthy = true;
+            console.log('Bot listo para recibir mensajes'); // Verificación adicional
         });
 
         this.whatsappClient.on('loading_screen', (percent, message) => {
@@ -263,6 +263,14 @@ class StabilityManager {
             }
 
             await this.whatsappClient.initialize();
+
+            // Verificar que el bot esté listo para recibir mensajes
+            if (this.whatsappClient.getState() === 'CONNECTED') {
+                console.log('Bot conectado y listo para recibir mensajes');
+            } else {
+                console.error('El bot no se conectó correctamente después del reinicio');
+                await this.handleReconnection('RESTART_FAILURE');
+            }
         } catch (error) {
             console.error('Error en la reconexión:', error);
             this.logError('reconnection', error);
@@ -337,10 +345,18 @@ class StabilityManager {
 
             await this.cleanupBeforeExit();
 
-            await new Promise(resolve => setTimeout(resolve, 5000));
+            await new Promise(resolve => setTimeout(resolve, 10000)); // Aumenta el retraso a 10 segundos
 
             this.startKeepAlive();
             await this.whatsappClient.initialize();
+
+            // Verificar que el bot esté listo para recibir mensajes
+            if (this.whatsappClient.getState() === 'CONNECTED') {
+                console.log('Bot conectado y listo para recibir mensajes');
+            } else {
+                console.error('El bot no se conectó correctamente después del reinicio');
+                await this.handleReconnection('RESTART_FAILURE');
+            }
 
             this.isReconnecting = false;
             console.log('Servicios reiniciados exitosamente');

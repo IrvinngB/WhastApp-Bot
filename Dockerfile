@@ -8,20 +8,19 @@ WORKDIR /usr/src/app
 USER root
 
 # Instala las dependencias adicionales necesarias
-RUN apt-get update \
-    && apt-get install -y \
-        xvfb \
-        libgbm-dev \
-        procps \
-        htop \
-        net-tools \
+RUN apt-get update && apt-get install -y \
+    xvfb \
+    libgbm-dev \
+    procps \
+    htop \
+    net-tools \
     && rm -rf /var/lib/apt/lists/*
 
 # Copia los archivos de dependencias de Node.js
 COPY package*.json ./
 
 # Instala las dependencias de Node.js en modo producción
-RUN npm ci
+RUN npm install
 
 # Copia todo el código fuente de la aplicación
 COPY . .
