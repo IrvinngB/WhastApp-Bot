@@ -1,54 +1,53 @@
-# Use Puppeteer's base image
+# Usamos la imagen base de Puppeteer que ya incluye Chrome y la mayoría de dependencias necesarias
 FROM ghcr.io/puppeteer/puppeteer:21.5.2
 
-# Set working directory
+# Establece el directorio donde se colocará y ejecutará la aplicación
 WORKDIR /usr/src/app
 
-# Switch to root for installations
+# Cambia temporalmente al usuario root para poder instalar paquetes
 USER root
 
-# Install additional dependencies including PM2
+# Instala las dependencias adicionales necesarias
 RUN apt-get update && apt-get install -y \
     xvfb \
     libgbm-dev \
     procps \
     htop \
     net-tools \
-    && rm -rf /var/lib/apt/lists/* \
-    && npm install -g pm2
+    && rm -rf /var/lib/apt/lists/*
 
-# Copy dependency files
+# Copia los archivos de dependencias de Node.js
 COPY package*.json ./
-COPY ecosystem.config.js ./
 
-# Install Node.js dependencies
+# Instala las dependencias de Node.js en modo producción
 RUN npm install
 
-# Copy source code
+# Instala PM2 globalmente
+RUN npm install pm2 -g
+
+# Copia todo el código fuente de la aplicación
 COPY . .
 
-# Create log directory for PM2
-RUN mkdir -p logs
-
-# Configure environment variables
+# Configura las variables de entorno necesarias
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
     PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome-stable \
     NODE_OPTIONS="--max-old-space-size=512" \
+    # Variables para gestión de memoria de Puppeteer
     CHROMIUM_FLAGS="--disable-dev-shm-usage --no-sandbox --disable-gpu --disable-software-rasterizer --js-flags='--expose-gc'" \
+    # Variables para el sistema de estabilidad
     MAX_RECONNECT_ATTEMPTS=10 \
     RECONNECT_DELAY=10000 \
     HEALTH_CHECK_INTERVAL=120000
 
-# Create and configure WhatsApp session directory
+# Crea y configura el directorio para la sesión de WhatsApp
 RUN mkdir -p .wwebjs_auth/session-client \
-    && chown -R pptruser:pptruser .wwebjs_auth \
-    && chown -R pptruser:pptruser logs
+    && chown -R pptruser:pptruser .wwebjs_auth
 
-# Expose port
+# Expone el puerto que usará la aplicación
 EXPOSE 3000
 
-# Switch to non-root user
+# Cambia al usuario no privilegiado pptruser por seguridad
 USER pptruser
 
-# Start the application using PM2
-CMD ["pm2-runtime", "ecosystem.config.js"]
+# Comando para iniciar la aplicación con PM2
+CMD ["pm2-runtime", "bot/bot.js"]
