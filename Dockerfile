@@ -1,50 +1,54 @@
-# Usamos la imagen base de Puppeteer que ya incluye Chrome y la mayoría de dependencias necesarias
+# Use Puppeteer's base image
 FROM ghcr.io/puppeteer/puppeteer:21.5.2
 
-# Establece el directorio donde se colocará y ejecutará la aplicación
+# Set working directory
 WORKDIR /usr/src/app
 
-# Cambia temporalmente al usuario root para poder instalar paquetes
+# Switch to root for installations
 USER root
 
-# Instala las dependencias adicionales necesarias
+# Install additional dependencies including PM2
 RUN apt-get update && apt-get install -y \
     xvfb \
     libgbm-dev \
     procps \
     htop \
     net-tools \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && npm install -g pm2
 
-# Copia los archivos de dependencias de Node.js
+# Copy dependency files
 COPY package*.json ./
+COPY ecosystem.config.js ./
 
-# Instala las dependencias de Node.js en modo producción
+# Install Node.js dependencies
 RUN npm install
 
-# Copia todo el código fuente de la aplicación
+# Copy source code
 COPY . .
 
-# Configura las variables de entorno necesarias
+# Create log directory for PM2
+RUN mkdir -p logs
+
+# Configure environment variables
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
     PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome-stable \
     NODE_OPTIONS="--max-old-space-size=512" \
-    # Variables para gestión de memoria de Puppeteer
     CHROMIUM_FLAGS="--disable-dev-shm-usage --no-sandbox --disable-gpu --disable-software-rasterizer --js-flags='--expose-gc'" \
-    # Variables para el sistema de estabilidad
     MAX_RECONNECT_ATTEMPTS=10 \
     RECONNECT_DELAY=10000 \
     HEALTH_CHECK_INTERVAL=120000
 
-# Crea y configura el directorio para la sesión de WhatsApp
+# Create and configure WhatsApp session directory
 RUN mkdir -p .wwebjs_auth/session-client \
-    && chown -R pptruser:pptruser .wwebjs_auth
+    && chown -R pptruser:pptruser .wwebjs_auth \
+    && chown -R pptruser:pptruser logs
 
-# Expone el puerto que usará la aplicación
+# Expose port
 EXPOSE 3000
 
-# Cambia al usuario no privilegiado pptruser por seguridad
+# Switch to non-root user
 USER pptruser
 
-# Comando para iniciar la aplicación con opciones de memoria y GC
-CMD ["node", "--expose-gc", "--max-old-space-size=512", "bot/bot.js"]
+# Start the application using PM2
+CMD ["pm2-runtime", "ecosystem.config.js"]

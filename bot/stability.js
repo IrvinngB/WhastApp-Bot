@@ -2,7 +2,7 @@ const axios = require('axios');
 const URL = require('url').URL;
 const fs = require('fs').promises;
 const path = require('path');
-const cron = require('node-cron'); // Para reinicios programados
+
 
 class StabilityManager {
     constructor(whatsappClient) {
@@ -46,7 +46,7 @@ class StabilityManager {
 
         this.setupMemoryMonitoring();
         this.setupEventHandlers();
-        this.scheduleDailyRestart(); // Programar reinicio diario
+        
     }
 
     // Función para manejar el estado de despliegue
@@ -91,21 +91,7 @@ class StabilityManager {
         return false;
     }
 
-    // Programar el reinicio diario a una hora específica
-    scheduleDailyRestart() {
-        // Ejemplo: Reiniciar todos los días a las 3:00 AM
-        cron.schedule('0 3 * * *', async () => {
-            console.log('Reinicio programado: Cerrando sesión...');
-            try {
-                await this.restartServices();
-                console.log('Reinicio programado: Sesión reiniciada exitosamente.');
-            } catch (error) {
-                console.error('Error durante el reinicio programado:', error);
-                // Intentar reconectar después de un breve retraso
-                setTimeout(() => this.restartServices(), 10000);
-            }
-        });
-    }
+    
 
     setupMemoryMonitoring() {
         setInterval(() => {
