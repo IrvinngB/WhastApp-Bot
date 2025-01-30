@@ -10,7 +10,7 @@ const fs = require('fs');
 const path = require('path');
 const moment = require('moment-timezone');
 const StabilityManager = require('./stability');
-const cron = require('node-cron'); // Importar node-cron para reinicios programados
+const cron = require('node-cron');
 
 // Manejo de memoria optimizado
 let used = process.memoryUsage();
@@ -71,6 +71,7 @@ const pausedUsers = new Map();
 const contextStore = new Map();
 const userRequestsHuman = new Map();
 const lastUserMessages = new Map(); // Para detectar mensajes repetidos
+const spamCooldown = new Map(); // Para manejar el cooldown después de detectar spam
 
 // Sistema de mensajes mejorado
 const SYSTEM_MESSAGES = {
@@ -366,40 +367,6 @@ async function handleMediaMessage(message) {
     }
 }
 
-//respuesta fuera de horario 
-async function generateLimitedResponse(userMessage, contactId) {
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-
-    const limitedPrompt = `
-    La tienda está cerrada en este momento, pero estoy aquí para ayudarte con preguntas básicas. 
-    Por favor, ten en cuenta que algunas funciones están limitadas fuera del horario de atención.
-
-    Puedo ayudarte con:
-    -Horario de la tienda
-    - Información básica sobre productos
-    - Información sobre la empresa
-    - Preguntas frecuentes
-    - Horarios de atención
-
-    Aquí tienes información sobre algunos de nuestros productos disponibles:
-    ${laptops}
-
-    Para consultas más complejas, como hacer reclamos o realizar compras, te recomiendo visitar nuestra página web: https://irvin-benitez.software o contactarnos durante nuestro horario de atención.
-
-    Pregunta del usuario: "${userMessage}"
-    `;
-
-    try {
-        const result = await model.generateContent(limitedPrompt);
-        const responseText = result.response.text();
-        return `${responseText}\n\n🕒 Nuestra tienda está cerrada en este momento. El horario de atención es de Lunes a Viernes de 6:00 AM a 10:00 PM y Sábados y Domingos de 7:00 AM a 8:00 PM (Hora de Panamá).\n\n🌐 Visita nuestra web: https://irvin-benitez.software`;
-    } catch (error) {
-        console.error('Error generando respuesta limitada:', error);
-        return SYSTEM_MESSAGES.ERROR;
-    }
-}
-
-
 // Función mejorada para verificar horario
 function getStoreStatus() {
     const panamaTime = moment().tz(PANAMA_TIMEZONE);
@@ -454,8 +421,31 @@ async function handleMessage(message) {
         return;
     }
 
+    // Verificar si el usuario está en cooldown por spam
+    if (spamCooldown.has(contactId)) {
+        const cooldownEnd = spamCooldown.get(contactId);
+        if (Date.now() < cooldownEnd) {
+            return; // No responder durante el cooldown
+        } else {
+            spamCooldown.delete(contactId); // Eliminar el cooldown si ha expirado
+        }
+    }
+
+    // Verificar si el mensaje es spam
+    if (isSpamMessage(message)) {
+        await message.reply(SYSTEM_MESSAGES.SPAM_WARNING);
+        spamCooldown.set(contactId, Date.now() + 180000); // 3 minutos de cooldown
+        return;
+    }
+
     // Verificar si el usuario está solicitando atención humana
     if (isRequestingHuman(messageText)) {
+        const storeStatus = getStoreStatus();
+        if (!storeStatus.isOpen) {
+            await message.reply('Lo siento, fuera del horario de atención no podemos conectarte con un agente. Por favor, intenta durante nuestro horario de atención.');
+            return;
+        }
+
         await message.reply(SYSTEM_MESSAGES.HUMAN_REQUEST);
         pausedUsers.set(contactId, true);
         userRequestsHuman.set(contactId, true);
@@ -489,12 +479,6 @@ async function handleMessage(message) {
         return;
     }
 
-    // Verificar si el mensaje es spam
-    if (isSpamMessage(message)) {
-        await message.reply(SYSTEM_MESSAGES.SPAM_WARNING);
-        return;
-    }
-
     try {
         const storeStatus = getStoreStatus();
         let responseText;
@@ -504,7 +488,7 @@ async function handleMessage(message) {
         } else if (storeStatus.isOpen) {
             responseText = await generateResponse(message.body, contactId);
         } else {
-            responseText = await generateLimitedResponse(message.body, contactId);
+            responseText = `🕒 Nuestra tienda está cerrada en este momento. El horario de atención es de Lunes a Viernes de 6:00 AM a 10:00 PM y Sábados y Domingos de 7:00 AM a 8:00 PM (Hora de Panamá).\n\n🌐 Visita nuestra web: https://irvin-benitez.software`;
         }
 
         await message.reply(responseText);
