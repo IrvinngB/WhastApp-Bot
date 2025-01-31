@@ -115,9 +115,7 @@ Para brindarte una mejor atención, te conectaré con uno de nuestros representa
 
 ⏳ Un agente se pondrá en contacto contigo pronto. Mientras tanto, ¿hay algo específico que quieras mencionar sobre el archivo compartido?`,
 
-    SPAM_WARNING: `Lo siento, pero he detectado contenido que podría ser spam o publicidad no solicitada. 
-
-Por favor, mantén las conversaciones relacionadas con nuestros productos y servicios. Si tienes alguna consulta legítima, estaré encantado de ayudarte. 🛡️`,
+    SPAM_WARNING: `⚠️ Has enviado demasiados mensajes repetidos. Por favor, espera 2 minutos antes de enviar más mensajes.`,
 
     RATE_LIMIT: `⚠️ Has enviado demasiados mensajes en poco tiempo. 
 
@@ -127,7 +125,13 @@ Si tienes una urgencia, escribe "agente" para hablar con una persona real.`,
 
     REPEATED_MESSAGE: `Parece que estás enviando el mismo mensaje repetidamente. 
 
-¿Hay algo específico en lo que pueda ayudarte? Si necesitas hablar con un agente humano, solo escribe "agente".`
+¿Hay algo específico en lo que pueda ayudarte? Si necesitas hablar con un agente humano, solo escribe "agente".`,
+
+HORARIO: `Horario de atención:
+    - Lunes a Viernes: 6:00 AM - 10:00 PM
+    - Sábados y Domingos: 7:00 AM - 8:00 PM
+    (Hora de Panamá)`,
+    WEB_PAGE: `Para más información, visita nuestra página web: https://irvin-benitez.software. Estamos aquí para ayudarte con cualquier consulta que tengas sobre nuestros productos y servicios. ¡Gracias por elegir ElectronicsJS!`
 };
 
 // Verificación de variables de entorno
@@ -202,8 +206,9 @@ function isRepeatedMessage(userId, message) {
     
     if (lastMessage && lastMessage.text === currentMessage) {
         lastMessage.count++;
-        if (lastMessage.count > 3) { // Más de 3 mensajes idénticos
-            return true;
+        if (lastMessage.count >= 4) { // Si el usuario envía 4 mensajes iguales
+            lastMessage.count = 0; // Reiniciar el contador
+            return true; // Indicar que se debe aplicar el cooldown
         }
     } else {
         lastUserMessages.set(userId, {
@@ -417,8 +422,14 @@ async function handleMessage(message) {
 
     // Verificar mensajes repetidos
     if (isRepeatedMessage(contactId, messageText)) {
-        await message.reply(SYSTEM_MESSAGES.REPEATED_MESSAGE);
-        return;
+        if (lastUserMessages.get(contactId).count === 0) { // Si es el cuarto mensaje repetido
+            await message.reply(SYSTEM_MESSAGES.SPAM_WARNING);
+            spamCooldown.set(contactId, Date.now() + 120000); // 2 minutos de cooldown
+            return;
+        } else {
+            await message.reply(SYSTEM_MESSAGES.REPEATED_MESSAGE);
+            return;
+        }
     }
 
     // Verificar si el usuario está en cooldown por spam
@@ -479,13 +490,18 @@ async function handleMessage(message) {
         return;
     }
 
+    //Mensajes de welcome y horario
     try {
         const storeStatus = getStoreStatus();
         let responseText;
 
         if (messageText === 'hola') {
             responseText = SYSTEM_MESSAGES.WELCOME;
-        } else if (storeStatus.isOpen) {
+        } else if (messageText === 'horario') {
+            responseText = SYSTEM_MESSAGES.HORARIO;
+        } else if (/web|página web|pagina web/i.test(messageText)) {
+            responseText = SYSTEM_MESSAGES.WEB_PAGE;
+        }else if (storeStatus.isOpen) {
             responseText = await generateResponse(message.body, contactId);
         } else {
             responseText = `🕒 Nuestra tienda está cerrada en este momento. El horario de atención es de Lunes a Viernes de 6:00 AM a 10:00 PM y Sábados y Domingos de 7:00 AM a 8:00 PM (Hora de Panamá).\n\n🌐 Visita nuestra web: https://irvin-benitez.software`;
@@ -598,6 +614,13 @@ setInterval(() => {
     for (const [userId, data] of lastUserMessages.entries()) {
         if (now - data.timestamp > MESSAGE_RATE_LIMIT.WINDOW_MS) {
             lastUserMessages.delete(userId);
+        }
+    }
+
+    // Limpiar cooldowns expirados
+    for (const [userId, cooldownEnd] of spamCooldown.entries()) {
+        if (now > cooldownEnd) {
+            spamCooldown.delete(userId);
         }
     }
 }, MESSAGE_RATE_LIMIT.WINDOW_MS);
