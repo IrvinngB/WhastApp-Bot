@@ -7,14 +7,11 @@ WORKDIR /usr/src/app
 # Cambia temporalmente al usuario root para poder instalar paquetes
 USER root
 
-# Instala las dependencias adicionales necesarias
-RUN apt-get update && \
-    apt-get install -y gnupg curl && \
-    curl -fsSL https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/google-chrome.gpg && \
-    echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome.gpg] https://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list && \
-    rm -f /etc/apt/sources.list.d/google.list && \
-    apt-get update && \
-    apt-get install -y \
+# Elimina los archivos de configuración conflictivos de Google Chrome
+RUN rm -f /etc/apt/sources.list.d/google-chrome.list /etc/apt/sources.list.d/google.list
+
+# Instala las dependencias adicionales necesarias sin depender del repositorio de Google
+RUN apt-get update && apt-get install -y \
     xvfb \
     libgbm-dev \
     procps \
