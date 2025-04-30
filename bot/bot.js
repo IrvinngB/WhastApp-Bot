@@ -241,6 +241,29 @@ function isSpamMessage(message) {
     return containsSpamPattern || hasMultipleUrls || hasMultiplePhoneNumbers || hasExcessivePunctuation;
 }
 
+// --- Selección de dataset relevante preguntando a la IA ---
+async function selectRelevantDatasetWithAI(userMessage) {
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    // Descripciones breves de cada dataset
+    const datasets = [
+        { name: 'Laptops1.txt', description: 'Listado de laptops, componentes, accesorios y servicios disponibles en ElectronicsJS.' },
+        { name: 'info_empresa.txt', description: 'Información sobre la empresa, misión, visión, políticas, horarios y contacto.' }
+    ];
+    const datasetsList = datasets.map(ds => `- ${ds.name}: ${ds.description}`).join('\n');
+    const selectionPrompt = `Tengo los siguientes datasets de información para responder preguntas de clientes.\n${datasetsList}\n\n¿Según la siguiente consulta de usuario, cuál dataset es el más relevante para responder?\nConsulta: \"${userMessage}\"\n\nResponde solo el nombre del archivo más relevante, sin explicación extra.`;
+    try {
+        const result = await model.generateContent(selectionPrompt);
+        const text = result.response.text().toLowerCase();
+        if (text.includes('laptops1')) return 'Laptops1.txt';
+        if (text.includes('info_empresa')) return 'info_empresa.txt';
+        // fallback
+        return 'info_empresa.txt';
+    } catch (e) {
+        console.error('Error seleccionando dataset relevante con IA:', e);
+        return 'info_empresa.txt';
+    }
+}
+
 // Función mejorada para generar respuestas
 async function generateResponse(userMessage, contactId, retryCount = 0) {
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
@@ -248,46 +271,15 @@ async function generateResponse(userMessage, contactId, retryCount = 0) {
     try {
         const userContext = contextStore.get(contactId) || '';
 
+        // --- Selección dinámica del dataset relevante ---
+        const relevantDatasetFile = await selectRelevantDatasetWithAI(userMessage);
+        const datasetContext = loadFile(relevantDatasetFile);
+
         const customPrompt = `
         Eres un asistente virtual llamado Electra amigable y profesional de ElectronicsJS. Tu objetivo es proporcionar la mejor atención posible siguiendo estas pautas:
-
-        PERSONALIDAD:
-        - Sé amable y empático, pero mantén un tono profesional
-        - Usa emojis ocasionalmente para dar calidez a tus respuestas
-        - Sé conciso pero informativo
-        - Si no estás seguro de algo, ofrece conectar con un agente humano
-
-        FUNCIONES PRINCIPALES:
-        1. Información de Productos:
-           - Proporciona detalles precisos sobre laptops y productos (componentes)
-           - Menciona especificaciones técnicas cuando sea relevante
-           - Sugiere productos según las necesidades del cliente
-
-        2. Información de la Empresa:
-           - Comparte detalles sobre ElectronicsJS: ${companyInfo}
-           - Informa sobre ubicación, horarios y políticas
-
-        3. Servicio al Cliente:
-           - Responde preguntas sobre garantías y soporte
-           - Explica procesos de compra y políticas de devolución
-           - Ofrece conectar con un agente humano cuando sea necesario
-
-        4. Gestión de Consultas:
-           - Si la pregunta está fuera de tu alcance, sugiere hablar con un agente
-           - Para temas sensibles o complejos, recomienda atención personalizada
-
-        RESTRICCIONES:
-        - No compartas información confidencial
-        - No hagas promesas sobre precios o disponibilidad
-        - No proporciones información personal de clientes
-        - No tomes decisiones sobre casos especiales
-
-        CONTEXTO ACTUAL:
-        - Historial del usuario: ${userContext}
-        - Productos disponibles (laptops y componentes): ${laptops}
-
-        RESPONDE A: "${userMessage}"
-
+        \nCONTEXTO RELEVANTE:\n${datasetContext}
+        \nHistorial del usuario: ${userContext}
+        \nRESPONDE A: \"${userMessage}\"\n
         FORMATO DE RESPUESTA:
         - Mantén las respuestas concisas (máximo 4-5 líneas)
         - Usa viñetas para listas largas
