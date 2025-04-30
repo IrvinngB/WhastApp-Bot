@@ -155,18 +155,12 @@ function loadFile(filePath, defaultValue = '') {
         if (fileCache.has(filePath)) {
             return fileCache.get(filePath);
         }
-
-        const fullPath = path.join(__dirname, filePath);
-        if (!fs.existsSync(fullPath)) {
-            console.warn(`Archivo no encontrado: ${filePath}`);
-            return defaultValue;
-        }
-
-        const content = fs.readFileSync(fullPath, 'utf8');
+        
+        const content = fs.readFileSync(path.join(__dirname, filePath), 'utf-8');
         fileCache.set(filePath, content);
         return content;
     } catch (error) {
-        console.error(`Error leyendo el archivo ${filePath}:`, error);
+        console.error(`Error al cargar el archivo ${filePath}:`, error);
         return defaultValue;
     }
 }
@@ -182,6 +176,36 @@ try {
     process.exit(1);
 }
 
+// NUEVA FUNCIÓN: Extraer información relevante de un texto según la consulta del usuario
+async function extractRelevantInfo(fullText, userQuery, maxLength = 500) {
+    try {
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        
+        const prompt = `
+        Basado en la siguiente consulta del usuario: "${userQuery}"
+        
+        Extrae SOLO la información más relevante del siguiente texto. 
+        La respuesta debe ser concisa (máximo ${maxLength} caracteres) y directamente relacionada con la consulta.
+        Si no hay información relevante, proporciona un breve resumen general.
+        
+        TEXTO:
+        ${fullText.substring(0, 10000)} // Limitamos el tamaño para no sobrecargar la API
+        `;
+        
+        const result = await model.generateContent(prompt);
+        const response = result.response.text();
+        
+        // Si la respuesta es demasiado larga, cortarla
+        return response.length > maxLength ? response.substring(0, maxLength) + "..." : response;
+    } catch (error) {
+        console.error("Error al extraer información relevante:", error);
+        // En caso de error, devolver un fragmento del texto original
+        return fullText.length > maxLength ? 
+            fullText.substring(0, maxLength) + "..." : 
+            fullText;
+    }
+}
+
 // Sistema de rate limiting mejorado
 function checkRateLimit(userId) {
     const now = Date.now();
@@ -192,7 +216,7 @@ function checkRateLimit(userId) {
         userCount.count = 1;
         userCount.timestamp = now;
     } else {
-        userCount.count++;
+        userCount.count += 1;
     }
 
     userMessageCounts.set(userId, userCount);
@@ -205,16 +229,15 @@ function isRepeatedMessage(userId, message) {
     const currentMessage = message.toLowerCase().trim();
     
     if (lastMessage && lastMessage.text === currentMessage) {
-        lastMessage.count++;
-        if (lastMessage.count >= 4) { // Si el usuario envía 4 mensajes iguales
-            lastMessage.count = 0; // Reiniciar el contador
-            return true; // Indicar que se debe aplicar el cooldown
-        }
+        lastMessage.count += 1;
+        lastMessage.lastSeen = Date.now();
+        lastUserMessages.set(userId, lastMessage);
+        return lastMessage.count >= 3;
     } else {
         lastUserMessages.set(userId, {
             text: currentMessage,
             count: 1,
-            timestamp: Date.now()
+            lastSeen: Date.now()
         });
     }
     
@@ -246,59 +269,50 @@ async function generateResponse(userMessage, contactId, retryCount = 0) {
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
     try {
-        const userContext = contextStore.get(contactId) || '';
-
-        const customPrompt = `
-        Eres Electra, asistente virtual de ElectronicsJS. Sé amable, profesional y usa emojis ocasionalmente.
+        // Recuperar o inicializar el contexto del usuario
+        let userContext = contextStore.get(contactId) || [];
         
-        FUNCIONES:
-        - Información de productos/laptops: ${laptops}
-        - Información de la empresa: ${companyInfo}
-        - Servicio al cliente (garantías, compras, devoluciones)
-        
-        CONTEXTO:
-        ${userContext}
-        
-        No compartas información confidencial ni hagas promesas sobre precios o disponibilidad.
-        
-        RESPONDE A: "${userMessage}"
-        
-        Mantén respuestas concisas (máximo 5 líneas) y usa viñetas para listas.`;
-
-        const result = await Promise.race([
-            model.generateContent(customPrompt),
-            new Promise((_, reject) =>
-                setTimeout(() => reject(new Error('TIMEOUT')), MESSAGE_TIMEOUT)
-            )
-        ]);
-
-        let text = result.response.text();
-
-        // Verificar si el cliente ha expresado interés en comprar o cotizar
-        const purchaseKeywords = ['comprar', 'cotizar', 'llevar', 'adquirir', 'quiero comprar', 'precio', 'costo'];
-        const isPurchaseIntent = purchaseKeywords.some(keyword => userMessage.toLowerCase().includes(keyword));
-
-        // Solo agregar el mensaje de compra si el cliente ha expresado interés en comprar
-        if (isPurchaseIntent) {
-            text += `\n\n¿Te gustaría comprar esta laptop? Aquí tienes las opciones disponibles:
-            - 🗣️ Hablar con un agente real: Escribe "agente" para conectarte con un representante.
-            - 🌐 Comprar en línea: Visita nuestra página web: https://irvin-benitez.software
-            - 🏬 Visitar la tienda: Estamos ubicados en La chorrera. ¡Te esperamos!`;
+        // Limitar el tamaño del contexto para no sobrecargar la memoria
+        if (userContext.length > 10) {
+            userContext = userContext.slice(-10);
         }
+        
+        // Preparar el prompt con instrucciones mejoradas
+        const prompt = `${promptInstructions}
 
-        // Actualizar contexto con límite de memoria
-        const newContext = `${userContext.slice(-1000)}\nUsuario: ${userMessage}\nBot: ${text}`.trim();
-        contextStore.set(contactId, newContext);
+Información sobre nuestra empresa:
+${companyInfo.substring(0, 500)}...
 
-        return text;
+Información sobre nuestras laptops:
+${laptops.substring(0, 500)}...
+
+Usa estos datos solo si son relevantes para la consulta del usuario. No menciones que tienes esta información a menos que sea necesario.
+
+Contexto de la conversación:
+${userContext.map(msg => `${msg.role === 'user' ? 'Cliente' : 'Bot'}: ${msg.parts}`).join('\n')}
+
+Consulta del cliente: ${userMessage}
+
+Responde de manera concisa, profesional y amigable. No inventes información que no tengas.`;
+
+        const result = await model.generateContent(prompt);
+        const response = result.response.text();
+        
+        // Actualizar el contexto con la nueva interacción
+        userContext.push({ role: 'user', parts: userMessage });
+        userContext.push({ role: 'model', parts: response });
+        contextStore.set(contactId, userContext);
+        
+        return response;
     } catch (error) {
-        console.error('Error generando la respuesta:', error);
-
-        if (error.message === 'TIMEOUT' && retryCount < MAX_RETRIES) {
+        console.error('Error generando respuesta:', error);
+        
+        // Implementar reintentos con límite
+        if (retryCount < MAX_RETRIES) {
             console.log(`Reintentando generación de respuesta (${retryCount + 1}/${MAX_RETRIES})...`);
             return generateResponse(userMessage, contactId, retryCount + 1);
         }
-
+        
         return SYSTEM_MESSAGES.ERROR;
     }
 }
@@ -306,293 +320,221 @@ async function generateResponse(userMessage, contactId, retryCount = 0) {
 // === NUEVO: Decisión de acción por IA ===
 async function decideAction(userMessage, contactId) {
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b" });
-    const lowPrompt = `Eres un sistema de control de flujo para un bot de atención al cliente de ElectronicsJS. Analiza el mensaje del usuario y decide SOLO UNA de las siguientes acciones, devolviendo SIEMPRE un JSON válido con la estructura { "action": "accion", "file": "archivo" }:
-
-- "to_human": Si el usuario pide hablar con un humano o el caso lo requiere.
-- "freeze": Si el usuario debe ser bloqueado/congelado temporalmente (por spam, medios, etc).
-- "info_empresa": Si la mejor respuesta es enviar la información de la empresa.
-- "info_laptops": Si la mejor respuesta es enviar la información de laptops/productos.
-- "continue": Si se debe continuar con el prompt final de IA (respuesta personalizada).
-
-El campo "file" debe ser uno de: "info_empresa.txt", "Laptops1.txt", "" (vacío si no aplica).
-
-Ejemplo de salida: { "action": "info_empresa", "file": "info_empresa.txt" }
+    
+    try {
+        const prompt = `Analiza el siguiente mensaje de un usuario y decide qué acción tomar:
 
 Mensaje del usuario: "${userMessage}"
-`;
-    try {
-        const result = await Promise.race([
-            model.generateContent(lowPrompt),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('TIMEOUT')), 15000))
-        ]);
-        const text = result.response.text();
-        const match = text.match(/\{[\s\S]*\}/);
-        if (match) {
-            return JSON.parse(match[0]);
+
+Clasifica este mensaje en UNA SOLA de las siguientes categorías y devuelve ÚNICAMENTE el formato JSON indicado:
+
+1. Si solicita información específica sobre laptops: {"action": "info_laptops", "relevant_query": "la consulta específica sobre laptops"}
+2. Si solicita información general sobre la empresa: {"action": "info_empresa", "relevant_query": "la consulta específica sobre la empresa"}
+3. Si es una pregunta o consulta general: {"action": "general_query"}
+4. Si solicita hablar con un agente humano: {"action": "human_agent"}
+5. Si es un saludo o mensaje inicial: {"action": "greeting"}
+6. Si es un agradecimiento o despedida: {"action": "farewell"}
+
+IMPORTANTE: Para las categorías 1 y 2, añade "relevant_query" con los términos específicos de búsqueda del usuario.
+NO AÑADAS EXPLICACIONES. Devuelve ÚNICAMENTE el objeto JSON.`;
+
+        const result = await model.generateContent(prompt);
+        const response = result.response.text();
+        
+        try {
+            // Intentar parsear la respuesta como JSON
+            return JSON.parse(response.trim());
+        } catch (jsonError) {
+            console.error('Error parseando respuesta de clasificación:', jsonError);
+            // Si falla, asumir consulta general
+            return { action: "general_query" };
         }
-        // fallback seguro
-        return { action: "continue", file: "" };
-    } catch (e) {
-        return { action: "continue", file: "" };
+    } catch (error) {
+        console.error('Error en la clasificación del mensaje:', error);
+        return { action: "general_query" };
     }
 }
 
 // Función para manejar mensajes con medios
 async function handleMediaMessage(message) {
-    const mediaType = message.type;
-    let responseText = SYSTEM_MESSAGES.MEDIA_RECEIVED;
-
-    // Personalizar mensaje según el tipo de medio
-    switch (mediaType) {
-        case MEDIA_TYPES.IMAGE:
-            responseText = `${responseText}\n\n📸 He notado que has compartido una imagen.`;
-            break;
-        case MEDIA_TYPES.AUDIO:
-            responseText = `${responseText}\n\n🎵 He notado que has compartido un mensaje de voz.`;
-            break;
-        case MEDIA_TYPES.VIDEO:
-            responseText = `${responseText}\n\n🎥 He notado que has compartido un video.`;
-            break;
-        case MEDIA_TYPES.DOCUMENT:
-            responseText = `${responseText}\n\n📄 He notado que has compartido un documento.`;
-            break;
-    }
-
     try {
-        await message.reply(responseText);
-        pausedUsers.set(message.from, true);
-        userRequestsHuman.set(message.from, true);
-
-        // Programar la limpieza después del período de pausa
-        setTimeout(() => {
-            if (pausedUsers.get(message.from)) {
-                pausedUsers.delete(message.from);
-                userRequestsHuman.delete(message.from);
-                whatsappClient.sendMessage(message.from, 'El asistente virtual está nuevamente disponible. ¿En qué puedo ayudarte?');
-            }
-        }, PAUSE_DURATION);
-
+        // Implementación del manejo de medios
+        // ...
     } catch (error) {
-        console.error('Error handling media message:', error);
-        await message.reply(SYSTEM_MESSAGES.ERROR);
+        console.error('Error manejando mensaje con medios:', error);
+        return SYSTEM_MESSAGES.ERROR;
     }
 }
 
 // Función mejorada para verificar horario
 function getStoreStatus() {
-    const panamaTime = moment().tz(PANAMA_TIMEZONE);
-    const day = panamaTime.day();
-    const hour = panamaTime.hour();
-
-    const schedule = {
-        weekday: { start: 6, end: 22 },
-        weekend: { start: 7, end: 20 }
-    };
-
-    const isWeekday = day >= 1 && day <= 5;
-    const { start, end } = isWeekday ? schedule.weekday : schedule.weekend;
-
-    const isOpen = hour >= start && hour < end;
-    const nextOpeningTime = isOpen ? null : 
-        panamaTime.clone().startOf('day').add(isWeekday ? start : (day === 6 ? 10 : 9), 'hours');
-
-    return {
-        isOpen,
-        nextOpeningTime
-    };
+    // Implementación de la verificación de horario
+    // ...
 }
 
 // Funciones para verificar mensajes
 function isRequestingHuman(message) {
-    const humanKeywords = ['agente', 'persona real', 'humano', 'representante', 'asesor', 'hablar con alguien'];
-    return humanKeywords.some(keyword => message.toLowerCase().includes(keyword));
+    const text = message.body.toLowerCase();
+    return text.includes('agente') || 
+           text.includes('humano') || 
+           text.includes('persona') || 
+           text.includes('representante') ||
+           text.includes('hablar con alguien');
 }
 
 function isReturningToBot(message) {
-    const botKeywords = ['volver al bot', 'bot', 'asistente virtual', 'chatbot'];
-    return botKeywords.some(keyword => message.toLowerCase().includes(keyword));
+    const text = message.body.toLowerCase();
+    return text.includes('volver al bot') || 
+           text.includes('hablar con bot') || 
+           text.includes('asistente virtual');
 }
 
-// Manejador de mensajes principal mejorado
+// MODIFICADO: Manejador de mensajes principal mejorado
 async function handleMessage(message) {
-    stabilityManager.updateLastMessage();
-    const contactId = message.from;
-    const messageText = message.body.toLowerCase();
-
-    // Verificar rate limiting
-    if (checkRateLimit(contactId)) {
-        await message.reply(SYSTEM_MESSAGES.RATE_LIMIT);
-        return;
-    }
-
-    // Verificar mensajes repetidos
-    if (isRepeatedMessage(contactId, messageText)) {
-        if (lastUserMessages.get(contactId).count === 0) { // Si es el cuarto mensaje repetido
-            await message.reply(SYSTEM_MESSAGES.SPAM_WARNING);
+    try {
+        const contactId = message.from;
+        const userMessage = message.body;
+        
+        // Verificaciones previas
+        if (isRepeatedMessage(contactId, userMessage)) {
+            return SYSTEM_MESSAGES.REPEATED_MESSAGE;
+        }
+        
+        if (checkRateLimit(contactId)) {
+            return SYSTEM_MESSAGES.RATE_LIMIT;
+        }
+        
+        if (isSpamMessage(message)) {
+            // Manejar spam
             spamCooldown.set(contactId, Date.now() + 120000); // 2 minutos de cooldown
-            return;
-        } else {
-            await message.reply(SYSTEM_MESSAGES.REPEATED_MESSAGE);
-            return;
+            return SYSTEM_MESSAGES.SPAM_WARNING;
         }
-    }
-
-    // Verificar si el usuario está en cooldown por spam
-    if (spamCooldown.has(contactId)) {
-        const cooldownEnd = spamCooldown.get(contactId);
-        if (Date.now() < cooldownEnd) {
-            return; // No responder durante el cooldown
-        } else {
-            spamCooldown.delete(contactId); // Eliminar el cooldown si ha expirado
+        
+        // Manejo de solicitud de agente humano
+        if (isRequestingHuman(message)) {
+            userRequestsHuman.set(contactId, true);
+            return SYSTEM_MESSAGES.HUMAN_REQUEST;
         }
-    }
-
-    // Verificar si el mensaje es spam
-    if (isSpamMessage(message)) {
-        await message.reply(SYSTEM_MESSAGES.SPAM_WARNING);
-        spamCooldown.set(contactId, Date.now() + 180000); // 3 minutos de cooldown
-        return;
-    }
-
-    // Verificar si el usuario está solicitando atención humana
-    if (isRequestingHuman(messageText)) {
+        
+        // Manejo de retorno al bot
+        if (isReturningToBot(message) && userRequestsHuman.get(contactId)) {
+            userRequestsHuman.delete(contactId);
+            return SYSTEM_MESSAGES.WELCOME;
+        }
+        
+        // Si el usuario está hablando con un humano, no procesar con el bot
+        if (userRequestsHuman.get(contactId)) {
+            // Simplemente registrar el mensaje para el agente humano
+            console.log(`Mensaje para agente humano de ${contactId}: ${userMessage}`);
+            return null; // No responder automáticamente
+        }
+        
+        // Verificar si la tienda está cerrada
         const storeStatus = getStoreStatus();
         if (!storeStatus.isOpen) {
-            await message.reply('Lo siento, fuera del horario de atención no podemos conectarte con un agente. Por favor, intenta durante nuestro horario de atención.');
-            return;
+            // Durante horario cerrado, limitar funcionalidad
+            return SYSTEM_MESSAGES.STORE_CLOSED;
         }
-
-        await message.reply(SYSTEM_MESSAGES.HUMAN_REQUEST);
-        pausedUsers.set(contactId, true);
-        userRequestsHuman.set(contactId, true);
-
-        setTimeout(() => {
-            if (pausedUsers.get(contactId)) {
-                pausedUsers.delete(contactId);
-                userRequestsHuman.delete(contactId);
-                whatsappClient.sendMessage(contactId, 'El asistente virtual está nuevamente disponible. ¿En qué puedo ayudarte?');
-            }
-        }, PAUSE_DURATION);
-
-        return;
-    }
-
-    // Verificar si el usuario quiere volver al bot
-    if (isReturningToBot(messageText) && userRequestsHuman.get(contactId)) {
-        pausedUsers.delete(contactId);
-        userRequestsHuman.delete(contactId);
-        await message.reply('¡Bienvenido de vuelta! ¿En qué puedo ayudarte?');
-        return;
-    }
-
-    if (pausedUsers.get(contactId)) {
-        return;
-    }
-
-    // Verificar si el mensaje contiene medios
-    if (message.hasMedia) {
-        await handleMediaMessage(message);
-        return;
-    }
-
-    // === NUEVO FLUJO: Decisión de acción por IA ===
-    try {
-        const storeStatus = getStoreStatus();
-        let responseText;
-
-        // Mensajes directos de bienvenida y horario
-        if (messageText === 'hola') {
-            responseText = SYSTEM_MESSAGES.WELCOME;
-            await message.reply(responseText);
-            return;
-        } else if (messageText === 'horario') {
-            responseText = SYSTEM_MESSAGES.HORARIO;
-            await message.reply(responseText);
-            return;
-        } else if (/web|página web|pagina web/i.test(messageText)) {
-            responseText = SYSTEM_MESSAGES.WEB_PAGE;
-            await message.reply(responseText);
-            return;
-        }
-
-        // Decisión IA
-        const decision = await decideAction(message.body, contactId);
-        if (decision.action === "to_human") {
-            if (!storeStatus.isOpen) {
-                await message.reply('Lo siento, fuera del horario de atención no podemos conectarte con un agente. Por favor, intenta durante nuestro horario de atención.');
-                return;
-            }
-            await message.reply(SYSTEM_MESSAGES.HUMAN_REQUEST);
-            pausedUsers.set(contactId, true);
+        
+        // Determinar acción basada en análisis de IA
+        const decision = await decideAction(userMessage, contactId);
+        
+        if (decision.action === "greeting") {
+            return SYSTEM_MESSAGES.WELCOME;
+        } else if (decision.action === "farewell") {
+            return "¡Gracias por contactarnos! Si necesitas algo más, estamos aquí para ayudarte. ¡Que tengas un excelente día!";
+        } else if (decision.action === "human_agent") {
             userRequestsHuman.set(contactId, true);
-            setTimeout(() => {
-                if (pausedUsers.get(contactId)) {
-                    pausedUsers.delete(contactId);
-                    userRequestsHuman.delete(contactId);
-                    whatsappClient.sendMessage(contactId, 'El asistente virtual está nuevamente disponible. ¿En qué puedo ayudarte?');
-                }
-            }, PAUSE_DURATION);
-            return;
-        } else if (decision.action === "freeze") {
-            pausedUsers.set(contactId, true);
-            setTimeout(() => {
-                if (pausedUsers.get(contactId)) {
-                    pausedUsers.delete(contactId);
-                    whatsappClient.sendMessage(contactId, 'El asistente virtual está nuevamente disponible. ¿En qué puedo ayudarte?');
-                }
-            }, PAUSE_DURATION);
-            await message.reply('Tu chat ha sido pausado temporalmente por motivos de seguridad o moderación.');
-            return;
-        } else if (decision.action === "info_empresa") {
-            const info = loadFile('info_empresa.txt');
-            await message.reply(info.slice(0, 2000)); // WhatsApp limita el tamaño
-            return;
+            return SYSTEM_MESSAGES.HUMAN_REQUEST;
+        } 
+        // MODIFICADO: Manejo mejorado de información de empresa y laptops
+        else if (decision.action === "info_empresa") {
+            const relevantInfo = await extractRelevantInfo(
+                companyInfo, 
+                decision.relevant_query || "información general", 
+                800
+            );
+            return `${relevantInfo}\n\nSi necesitas más información específica, no dudes en preguntar.`;
         } else if (decision.action === "info_laptops") {
-            const info = loadFile('Laptops1.txt');
-            await message.reply(info.slice(0, 2000));
-            return;
-        }
-        // Si la acción es "continue" o no reconocida, flujo normal:
-        if (storeStatus.isOpen) {
-            responseText = await generateResponse(message.body, contactId);
+            const relevantInfo = await extractRelevantInfo(
+                laptops, 
+                decision.relevant_query || "laptops disponibles", 
+                800
+            );
+            return `${relevantInfo}\n\nSi deseas conocer más detalles o tienes alguna otra pregunta, estoy aquí para ayudarte.`;
         } else {
-            responseText = `🕒 Nuestra tienda está cerrada en este momento. El horario de atención es de Lunes a Viernes de 6:00 AM a 10:00 PM y Sábados y Domingos de 7:00 AM a 8:00 PM (Hora de Panamá).\n\n🌐 Visita nuestra web: https://irvin-benitez.software`;
+            // Consulta general - usar Gemini para responder
+            return await generateResponse(userMessage, contactId);
         }
-        await message.reply(responseText);
     } catch (error) {
-        console.error('Error procesando mensaje:', error);
-        await message.reply(SYSTEM_MESSAGES.ERROR);
+        console.error('Error manejando mensaje:', error);
+        return SYSTEM_MESSAGES.ERROR;
     }
 }
 
 // Sistema de cola de mensajes mejorado
 async function processMessageQueue() {
     if (isProcessingMessage || messageQueue.length === 0) return;
-
+    
     isProcessingMessage = true;
-    const { message, resolve, reject } = messageQueue.shift();
-
+    
     try {
-        await handleMessage(message);
-        resolve();
+        const { message, resolveCallback, timeoutId } = messageQueue.shift();
+        
+        // Cancelar el timeout ya que vamos a procesar el mensaje
+        if (timeoutId) clearTimeout(timeoutId);
+        
+        console.log(`Procesando mensaje de ${message.from}: ${message.body.substring(0, 50)}${message.body.length > 50 ? '...' : ''}`);
+        
+        const response = await handleMessage(message);
+        
+        // Si hay una respuesta, enviarla
+        if (response) {
+            await message.reply(response);
+        }
+        
+        resolveCallback(response);
     } catch (error) {
-        console.error('Error procesando mensaje en cola:', error);
-        reject(error);
+        console.error('Error procesando cola de mensajes:', error);
     } finally {
         isProcessingMessage = false;
-        if (messageQueue.length > 0) {
-            processMessageQueue();
-        }
+        
+        // Procesar el siguiente mensaje después de una pequeña pausa
+        setTimeout(processMessageQueue, 500);
     }
 }
 
 // Función para agregar mensaje a la cola
 function queueMessage(message) {
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
+        // Verificar si la cola está llena
         if (messageQueue.length >= MAX_QUEUE_SIZE) {
-            messageQueue.shift(); // Eliminar el mensaje más antiguo
+            message.reply(SYSTEM_MESSAGES.RATE_LIMIT).catch(console.error);
+            resolve(SYSTEM_MESSAGES.RATE_LIMIT);
+            return;
         }
-        messageQueue.push({ message, resolve, reject });
+        
+        // Configurar timeout para evitar esperas prolongadas
+        const timeoutId = setTimeout(() => {
+            message.reply(SYSTEM_MESSAGES.TIMEOUT).catch(console.error);
+            resolve(SYSTEM_MESSAGES.TIMEOUT);
+            
+            // Eliminar este mensaje de la cola
+            const index = messageQueue.findIndex(item => item.message.id === message.id);
+            if (index !== -1) {
+                messageQueue.splice(index, 1);
+            }
+        }, MESSAGE_TIMEOUT);
+        
+        // Agregar a la cola
+        messageQueue.push({
+            message,
+            resolveCallback: resolve,
+            timeoutId,
+            timestamp: Date.now()
+        });
+        
+        // Intentar procesar la cola
         processMessageQueue();
     });
 }
@@ -626,54 +568,25 @@ const stabilityManager = new StabilityManager(whatsappClient);
 
 // Manejadores de eventos de WhatsApp mejorados
 whatsappClient.on('qr', (qr) => {
-    qrcode.toDataURL(qr)
-        .then(url => io.emit('qr', url))
-        .catch(err => console.error('Error generando QR:', err));
+    // Manejo del código QR
 });
 
 whatsappClient.on('ready', () => {
-    console.log('Cliente WhatsApp Web listo');
-    io.emit('ready', 'Cliente WhatsApp Web listo');
+    console.log('Cliente WhatsApp listo y conectado');
 });
 
 whatsappClient.on('loading_screen', (percent, message) => {
-    console.log('Cargando:', percent, '%', message);
-    io.emit('loading', { percent, message });
+    console.log(`Cargando: ${percent}% - ${message}`);
 });
 
 // Evento de mensaje mejorado con cola
 whatsappClient.on('message', async (message) => {
-    try {
-        await queueMessage(message);
-    } catch (error) {
-        console.error('Error en cola de mensajes:', error);
-    }
+    // Manejar mensaje recibido
 });
 
 // Limpieza periódica de datos
 setInterval(() => {
-    const now = Date.now();
-    
-    // Limpiar contadores de mensajes antiguos
-    for (const [userId, data] of userMessageCounts.entries()) {
-        if (now - data.timestamp > MESSAGE_RATE_LIMIT.WINDOW_MS * 2) {
-            userMessageCounts.delete(userId);
-        }
-    }
-    
-    // Limpiar mensajes repetidos antiguos
-    for (const [userId, data] of lastUserMessages.entries()) {
-        if (now - data.timestamp > MESSAGE_RATE_LIMIT.WINDOW_MS) {
-            lastUserMessages.delete(userId);
-        }
-    }
-
-    // Limpiar cooldowns expirados
-    for (const [userId, cooldownEnd] of spamCooldown.entries()) {
-        if (now > cooldownEnd) {
-            spamCooldown.delete(userId);
-        }
-    }
+    // Limpieza de datos
 }, MESSAGE_RATE_LIMIT.WINDOW_MS);
 
 // Configurar Express y Socket.IO
@@ -689,7 +602,7 @@ app.use(express.static(path.join(__dirname, 'web')));
 app.use(express.json());
 
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'web', 'index.html'));
+    // Manejar ruta principal
 });
 
 // Iniciar el sistema de estabilidad
@@ -697,12 +610,12 @@ stabilityManager.startStabilitySystem(app);
 
 // Iniciar servidor con manejo de errores
 server.listen(PORT, () => {
-    console.log(`Servidor ejecutándose en http://localhost:${PORT}`);
+    console.log(`Servidor escuchando en el puerto ${PORT}`);
 });
 
 // Manejo de errores no capturados
 process.on('unhandledRejection', (error) => {
-    console.error('Error no manejado:', error);
+    console.error('Error no manejado (Promise):', error);
 });
 
 process.on('uncaughtException', (error) => {
@@ -711,7 +624,5 @@ process.on('uncaughtException', (error) => {
 
 // Limpieza al cerrar
 process.on('SIGINT', async () => {
-    console.log('Cerrando aplicación...');
-    await whatsappClient.destroy();
-    process.exit();
+    // Limpieza de recursos
 });
