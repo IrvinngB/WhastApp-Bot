@@ -243,15 +243,19 @@ class StabilityManager {
                 await this.clearSession();
             }
 
-            if (this.initialized) {
+            // Siempre destruir antes de inicializar para evitar bindings duplicados
+            try {
                 await this.whatsappClient.destroy();
-                await new Promise(resolve => setTimeout(resolve, 5000));
+                console.log('Cliente destruido antes de inicializar (reconexión)');
+            } catch (e) {
+                console.log('No se pudo destruir el cliente (quizá ya estaba destruido):', e.message);
             }
+            await new Promise(resolve => setTimeout(resolve, 5000));
 
             await this.whatsappClient.initialize();
 
             // Verificar que el bot esté listo para recibir mensajes
-            if (this.whatsappClient.getState() === 'CONNECTED') {
+            if (this.whatsappClient.getState && this.whatsappClient.getState() === 'CONNECTED') {
                 console.log('Bot conectado y listo para recibir mensajes');
             } else {
                 console.error('El bot no se conectó correctamente después del reinicio');
@@ -261,7 +265,7 @@ class StabilityManager {
             console.error('Error en la reconexión:', error);
             this.logError('reconnection', error);
 
-            if (error.message.includes('ERR_FAILED') || error.message.includes('timeout')) {
+            if (error.message && (error.message.includes('ERR_FAILED') || error.message.includes('timeout'))) {
                 await this.clearSession();
             }
 
@@ -334,10 +338,18 @@ class StabilityManager {
             await new Promise(resolve => setTimeout(resolve, 10000)); // Aumenta el retraso a 10 segundos
 
             this.startKeepAlive();
+            // Siempre destruir antes de inicializar para evitar bindings duplicados
+            try {
+                await this.whatsappClient.destroy();
+                console.log('Cliente destruido antes de inicializar (restartServices)');
+            } catch (e) {
+                console.log('No se pudo destruir el cliente (quizá ya estaba destruido):', e.message);
+            }
+            await new Promise(resolve => setTimeout(resolve, 5000));
             await this.whatsappClient.initialize();
 
             // Verificar que el bot esté listo para recibir mensajes
-            if (this.whatsappClient.getState() === 'CONNECTED') {
+            if (this.whatsappClient.getState && this.whatsappClient.getState() === 'CONNECTED') {
                 console.log('Bot conectado y listo para recibir mensajes');
             } else {
                 console.error('El bot no se conectó correctamente después del reinicio');
@@ -426,6 +438,14 @@ class StabilityManager {
         this.startKeepAlive();
 
         try {
+            // Siempre destruir antes de inicializar para evitar bindings duplicados
+            try {
+                await this.whatsappClient.destroy();
+                console.log('Cliente destruido antes de inicializar (startStabilitySystem)');
+            } catch (e) {
+                console.log('No se pudo destruir el cliente (quizá ya estaba destruido):', e.message);
+            }
+            await new Promise(resolve => setTimeout(resolve, 5000));
             await this.whatsappClient.initialize();
         } catch (error) {
             console.error('Error en la inicialización inicial:', error);

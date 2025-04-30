@@ -35,9 +35,7 @@ COPY . .
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
     PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome-stable \
     NODE_OPTIONS="--max-old-space-size=512" \
-    # Variables para gestión de memoria de Puppeteer
-    CHROMIUM_FLAGS="--disable-dev-shm-usage --no-sandbox --disable-gpu --disable-software-rasterizer --js-flags='--expose-gc'" \
-    # Variables para el sistema de estabilidad
+    CHROMIUM_FLAGS="--disable-dev-shm-usage --no-sandbox --disable-gpu --disable-software-rasterizer" \
     MAX_RECONNECT_ATTEMPTS=10 \
     RECONNECT_DELAY=10000 \
     HEALTH_CHECK_INTERVAL=120000
@@ -53,4 +51,4 @@ EXPOSE 3000
 USER pptruser
 
 # Comando para iniciar la aplicación con PM2
-CMD ["pm2-runtime", "bot/bot.js"]
+CMD ["pm2-runtime", "--node-args=--expose-gc", "bot/bot.js"]

@@ -305,7 +305,7 @@ async function generateResponse(userMessage, contactId, retryCount = 0) {
 
 // === NUEVO: Decisión de acción por IA ===
 async function decideAction(userMessage, contactId) {
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b" });
     const lowPrompt = `Eres un sistema de control de flujo para un bot de atención al cliente de ElectronicsJS. Analiza el mensaje del usuario y decide SOLO UNA de las siguientes acciones, devolviendo SIEMPRE un JSON válido con la estructura { "action": "accion", "file": "archivo" }:
 
 - "to_human": Si el usuario pide hablar con un humano o el caso lo requiere.
