@@ -13,6 +13,6 @@
   },
   "scripts": {
   "start": "node bot/bot.js",
-  "dev": "nodemon bot/bot.js"
+  "dev": "nodemon bot/main.js"
 }
 }

@@ -1,0 +1,110 @@
+{
+  "laptops": {
+    "gama_baja": [
+      { "modelo": "Acer Aspire 5", "especificaciones": "AMD Ryzen 3 5300U, 4 GB RAM, 128 GB SSD, Pantalla 15.6\" Full HD, Windows 11 Home", "precio": 400 },
+      { "modelo": "Lenovo IdeaPad 3", "especificaciones": "Intel Core i3-1115G4, 4 GB RAM, 256 GB SSD, Pantalla 14\" HD, Windows 11 Home", "precio": 350 },
+      { "modelo": "Dell Inspiron 15 3000", "especificaciones": "Intel Pentium Silver N5030, 4 GB RAM, 128 GB SSD, Pantalla 15.6\" HD, Windows 11 Home", "precio": 350 },
+      { "modelo": "Acer Aspire 1", "especificaciones": "Intel Celeron N4500, 4 GB RAM, 128 GB eMMC, Pantalla 14\" HD (1366 x 768), Windows 10 Home en modo S", "precio": 300 },
+      { "modelo": "HP Stream 14", "especificaciones": "Intel Celeron N4020, 4 GB RAM, 64 GB eMMC, Pantalla 14\" HD (1366 x 768), Windows 11 Home en modo S", "precio": 280 },
+      { "modelo": "ASUS VivoBook Go 15", "especificaciones": "AMD Ryzen 3 3250U, 4 GB RAM, 128 GB SSD, Pantalla 15.6\" HD, Windows 11 Home", "precio": 375 },
+      { "modelo": "HP Laptop 15", "especificaciones": "Intel Celeron N4500, 4 GB RAM, 128 GB SSD, Pantalla 15.6\" HD, Windows 11 Home", "precio": 320 },
+      { "modelo": "Lenovo IdeaPad 1", "especificaciones": "AMD A6-9220e, 4 GB RAM, 64 GB eMMC, Pantalla 14\" HD, Windows 11 Home en modo S", "precio": 250 }
+    ],
+    "gama_media": [
+      { "modelo": "HP Pavilion x360", "especificaciones": "Intel Core i5-1135G7, 8 GB RAM, 512 GB SSD, Pantalla 14\" Full HD táctil, Windows 11 Home", "precio": 650 },
+      { "modelo": "Acer Aspire 7", "especificaciones": "AMD Ryzen 5 3550H, 8 GB RAM, 512 GB SSD, Pantalla 15.6\" Full HD, Windows 10 Home", "precio": 700 },
+      { "modelo": "Lenovo Yoga 7i", "especificaciones": "Intel Core i5-1235U, 8 GB RAM, 256 GB SSD, Pantalla 14\" Full HD táctil, Windows 11 Home", "precio": 750 },
+      { "modelo": "Dell Inspiron 14 7000", "especificaciones": "Intel Core i5-11300H, 8 GB RAM, 512 GB SSD, Pantalla 14\" Full HD, Windows 11 Home", "precio": 750 },
+      { "modelo": "Asus VivoBook 15", "especificaciones": "Intel Core i5-1135G7, 8 GB RAM, 512 GB SSD, Pantalla 15.6\" Full HD, Windows 11 Home", "precio": 700 },
+      { "modelo": "MSI Modern 14", "especificaciones": "Intel Core i5-1155G7, 8 GB RAM, 512 GB SSD, Pantalla 14\" Full HD, Windows 11 Home", "precio": 680 },
+      { "modelo": "ASUS ZenBook 14", "especificaciones": "AMD Ryzen 5 5500U, 8 GB RAM, 256 GB SSD, Pantalla 14\" Full HD, Windows 11 Home", "precio": 720 },
+      { "modelo": "Acer Swift 3", "especificaciones": "Intel Core i5-1240P, 8 GB RAM, 512 GB SSD, Pantalla 14\" Full HD, Windows 11 Home", "precio": 780 }
+    ],
+    "gama_alta": [
+      { "modelo": "Apple MacBook Air (M2, 2023)", "especificaciones": "Apple M2, 8 GB RAM, 256 GB SSD, Pantalla 13.6\" Liquid Retina, macOS", "precio": 1200 },
+      { "modelo": "Dell XPS 15", "especificaciones": "Intel Core i7-13700H, 16 GB RAM, 1 TB SSD, Pantalla 15.6\" 4K UHD+, Windows 11 Pro", "precio": 2000 },
+      { "modelo": "Microsoft Surface Laptop 5", "especificaciones": "Intel Core i7-1255U, 16 GB RAM, 512 GB SSD, Pantalla 15\" PixelSense, Windows 11 Home", "precio": 1800 },
+      { "modelo": "HP Spectre x360 14", "especificaciones": "Intel Core i7-1165G7, 16 GB RAM, 512 GB SSD, Pantalla 13.5\" Full HD táctil, Windows 11 Home", "precio": 1400 },
+      { "modelo": "Huawei MateBook X Pro", "especificaciones": "Intel Core i7-1165G7, 16 GB RAM, 512 GB SSD, Pantalla 13.9\" 3K táctil, Windows 11 Home", "precio": 1500 },
+      { "modelo": "Razer Book 13", "especificaciones": "Intel Core i7-1165G7, 16 GB RAM, 512 GB SSD, Pantalla 13.4\" 4K táctil, Windows 11 Home", "precio": 1600 },
+      { "modelo": "ASUS ZenBook Pro Duo", "especificaciones": "Intel Core i7-12700H, 16 GB RAM, 1 TB SSD, Pantalla 15.6\" 4K OLED, Windows 11 Pro", "precio": 1900 },
+      { "modelo": "LG Gram 17", "especificaciones": "Intel Core i7-1260P, 16 GB RAM, 1 TB SSD, Pantalla 17\" WQXGA, Windows 11 Home", "precio": 1700 }
+    ],
+    "gamer": [
+      { "modelo": "Acer Nitro 5", "especificaciones": "Intel Core i5-11400H, 8 GB RAM, 512 GB SSD, RTX 3050, 144Hz", "precio": 1000 },
+      { "modelo": "HP Omen 16", "especificaciones": "AMD Ryzen 7 5800H, 16 GB RAM, 512 GB SSD, RTX 3060, 165Hz", "precio": 1500 },
+      { "modelo": "Lenovo Legion 5", "especificaciones": "AMD Ryzen 5 5600H, 12 GB RAM, 512 GB SSD, GTX 1650, 120Hz", "precio": 850 },
+      { "modelo": "HP Pavilion Gaming 15", "especificaciones": "Intel Core i5-11300H, 8 GB RAM, 512 GB SSD, GTX 1650, 60Hz", "precio": 750 },
+      { "modelo": "MSI GF65 Thin", "especificaciones": "Intel Core i7-10750H, 16 GB RAM, 512 GB SSD, RTX 3060, 120Hz", "precio": 1200 },
+      { "modelo": "ASUS TUF Gaming A15", "especificaciones": "AMD Ryzen 7 4800H, 16 GB RAM, 512 GB SSD, RTX 3050 Ti, 144Hz", "precio": 1100 },
+      { "modelo": "Dell G15 Gaming", "especificaciones": "AMD Ryzen 5 5600H, 8 GB RAM, 512 GB SSD, RTX 3050, 120Hz", "precio": 900 },
+      { "modelo": "MSI Katana GF76", "especificaciones": "Intel Core i7-11800H, 16 GB RAM, 512 GB SSD, RTX 3050 Ti, 144Hz", "precio": 1300 }
+    ],
+    "empresarial": [
+      { "modelo": "Lenovo ThinkPad T14", "especificaciones": "Intel Core i5-10210U, 8 GB RAM, 256 GB SSD, Windows 10 Pro", "precio": 750 },
+      { "modelo": "Lenovo ThinkPad X1 Carbon", "especificaciones": "Intel Core i5-10210U, 8 GB RAM, 256 GB SSD, Windows 10 Pro", "precio": 950 },
+      { "modelo": "HP EliteBook 850 G6", "especificaciones": "Intel Core i5-8365U, 8 GB RAM, 256 GB SSD, Windows 10 Pro", "precio": 900 },
+      { "modelo": "Acer Swift 3", "especificaciones": "Intel Core i5-1135G7, 8 GB RAM, 512 GB SSD, Windows 11 Home", "precio": 700 },
+      { "modelo": "Lenovo ThinkPad L14 Yoga", "especificaciones": "Intel Core i5-1135G7, 8 GB RAM, 256 GB SSD, Windows 11 Pro", "precio": 1000 },
+      { "modelo": "Dell Latitude 5420", "especificaciones": "Intel Core i5-1145G7, 8 GB RAM, 256 GB SSD, Windows 10 Pro", "precio": 850 },
+      { "modelo": "HP ProBook 450 G8", "especificaciones": "Intel Core i5-1135G7, 8 GB RAM, 512 GB SSD, Windows 10 Pro", "precio": 800 },
+      { "modelo": "ASUS ExpertBook B5", "especificaciones": "Intel Core i5-1135G7, 8 GB RAM, 512 GB SSD, Windows 11 Pro", "precio": 880 }
+    ]
+  },
+  "componentes": {
+    "memoria_ram": [
+      { "producto": "Crucial 8GB DDR4-3200 SODIMM", "descripcion": "Compatible con laptops modernas, bajo voltaje", "precio": 35 },
+      { "producto": "Kingston HyperX Impact 16GB DDR4-3200", "descripcion": "Alto rendimiento para gaming", "precio": 65 },
+      { "producto": "Samsung 8GB DDR4-2666 SODIMM", "descripcion": "Fiabilidad y rendimiento equilibrado", "precio": 40 }
+    ],
+    "almacenamiento": [
+      { "producto": "Samsung 970 EVO Plus 500GB NVMe M.2", "descripcion": "Alto rendimiento, 3500MB/s lectura", "precio": 80 },
+      { "producto": "Crucial MX500 1TB SATA SSD", "descripcion": "Excelente relación calidad-precio", "precio": 100 },
+      { "producto": "Western Digital Blue 2TB HDD 2.5\"", "descripcion": "Almacenamiento masivo económico", "precio": 65 }
+    ],
+    "baterias": [
+      { "producto": "Batería HP Original 45Wh", "descripcion": "Compatible con serie Pavilion", "precio": 89 },
+      { "producto": "Batería Lenovo ThinkPad 50Wh", "descripcion": "Para modelos T14/T15", "precio": 95 },
+      { "producto": "Batería Dell 60Wh", "descripcion": "Compatible con Latitude/Inspiron", "precio": 99 }
+    ]
+  },
+  "accesorios": {
+    "mochilas_fundas": [
+      { "producto": "Targus CitySmart 15.6\" Professional Backpack", "descripcion": "Resistente al agua", "precio": 45 },
+      { "producto": "Samsonite Classic Sleeve 14\"", "descripcion": "Funda acolchada premium", "precio": 25 },
+      { "producto": "SwissGear Travel Gear 17\" Laptop Backpack", "descripcion": "Múltiples compartimentos", "precio": 55 }
+    ],
+    "perifericos": [
+      { "producto": "Logitech MX Master 3", "descripcion": "Mouse inalámbrico premium", "precio": 99 },
+      { "producto": "Microsoft Surface Keyboard", "descripcion": "Teclado bluetooth slim", "precio": 79 },
+      { "producto": "LG 24\" FHD Monitor", "descripcion": "Panel IPS, 75Hz", "precio": 159 }
+    ],
+    "cooling_pads": [
+      { "producto": "Cooler Master NotePal X3", "descripcion": "Ventilador LED azul, 2 puertos USB", "precio": 35 },
+      { "producto": "Thermaltake Massive 20 RGB", "descripcion": "200mm fan, control táctil", "precio": 45 },
+      { "producto": "KLIM Wind Laptop Cooling Pad", "descripcion": "4 ventiladores, diseño ligero", "precio": 25 }
+    ],
+    "accesorios_carga": [
+      { "producto": "Anker 65W GaN Charger", "descripcion": "Cargador compacto USB-C", "precio": 45 },
+      { "producto": "AUKEY 100W Power Bank 20000mAh", "descripcion": "Batería portátil de alta capacidad", "precio": 79 },
+      { "producto": "Belkin Surge Protector", "descripcion": "12 tomas, protección contra sobretensiones", "precio": 25 }
+    ]
+  },
+  "servicios": {
+    "garantias_ext": [
+      { "plan": "Básico", "descripcion": "1 año adicional de cobertura", "precio": 49 },
+      { "plan": "Premium", "descripcion": "2 años adicionales + cobertura por accidentes", "precio": 99 },
+      { "plan": "Business", "descripcion": "3 años + soporte prioritario", "precio": 149 }
+    ],
+    "mantenimiento": [
+      { "servicio": "Limpieza Básica", "descripcion": "Limpieza externa + teclado", "precio": 25 },
+      { "servicio": "Mantenimiento Preventivo", "descripcion": "Limpieza completa + pasta térmica", "precio": 45 },
+      { "servicio": "Servicio Premium", "descripcion": "Limpieza profunda + optimización software", "precio": 75 }
+    ],
+    "soporte_tecnico": [
+      { "servicio": "Soporte Remoto", "descripcion": "Asistencia técnica por TeamViewer", "precio": "15$/sesión" },
+      { "servicio": "Diagnóstico Presencial", "descripcion": "Revisión y diagnóstico completo", "precio": 35 },
+      { "servicio": "Configuración Empresarial", "descripcion": "Setup completo para empresas", "precio": "99$/equipo" }
+    ]
+  }
+}
