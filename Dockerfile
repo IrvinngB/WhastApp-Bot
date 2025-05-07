@@ -53,4 +53,4 @@ EXPOSE 3000
 USER pptruser
 
 # Comando para iniciar la aplicación con PM2
-CMD ["pm2-runtime", "bot/bot.js"]
+CMD ["pm2-runtime", "bot/main.js"]
